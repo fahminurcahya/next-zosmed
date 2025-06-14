@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Post {
+    id        Int      @id @default(autoincrement())
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([name])
+}
+
+model User {
+    id            String    @id
+    name          String
+    email         String
+    emailVerified Boolean
+    image         String?
+    createdAt     DateTime
+    updatedAt     DateTime
+    sessions      Session[]
+    accounts      Account[]
+
+    @@unique([email])
+    @@map("user")
+}
+
+model Session {
+    id        String   @id
+    expiresAt DateTime
+    token     String
+    createdAt DateTime
+    updatedAt DateTime
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([token])
+    @@map("session")
+}
+
+model Account {
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime
+    updatedAt             DateTime
+
+    @@map("account")
+}
+
+model Verification {
+    id         String    @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime?
+    updatedAt  DateTime?
+
+    @@map("verification")
+}
+
+model Workflow {
+    id            String              @id @default(cuid())
+    userId        String
+    name          String
+    description   String?
+    definition    String
+    executionPlan String?
+    creditsCost   Int                 @default(0)
+    cron          String?
+    status        String // DRAFT | PUBLISHED
+    lastRunAt     DateTime?
+    lastRunId     String?
+    lastRunStatus String?
+    nextRunAt     DateTime?
+    createdAt     DateTime            @default(now())
+    updateAt      DateTime            @updatedAt
+    executions    WorkflowExecution[]
+
+    // User cannot have two workflows with the same name 
+    @@unique([name, userId])
+}
+
+model WorkflowExecution {
+    id              String           @id @default(cuid())
+    workflowId      String
+    userId          String
+    trigger         String
+    status          String
+    createdAt       DateTime         @default(now())
+    startedAt       DateTime?
+    completedAt     DateTime?
+    definition      String           @default("{}")
+    creditsConsumed Int              @default(0)
+    phases          ExecutionPhase[]
+    workflow        Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+model ExecutionPhase {
+    id                  String            @id @default(cuid())
+    userId              String
+    status              String
+    number              Int
+    node                String
+    name                String
+    startedAt           DateTime?
+    completedAt         DateTime?
+    inputs              String?
+    outputs             String?
+    creditsConsumed     Int?
+    workflowExecutionId String
+    execution           WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
+    logs                ExecutionLog[]
+}
+
+model ExecutionLog {
+    id               String         @id @default(cuid())
+    logLevel         String
+    message          String
+    timestamp        DateTime       @default(now())
+    executionPhaseId String
+    executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
+}

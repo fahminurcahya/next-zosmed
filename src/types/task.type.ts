@@ -11,6 +11,11 @@ export enum TaskType {
     ADD_PROPERTY_TO_JSON = "ADD_PROPERTY_TO_JSON",
     NAVIGATE_URL = "NAVIGATE_URL",
     SCROLL_TO_ELEMENT = "SCROLL_TO_ELEMENT",
+    IG_TRIGGER = "IG_TRIGGER",
+    IG_USER_COMMENT = "IG_USER_COMMENT",
+    IG_USER_DM = "IG_USER_DM",
+    IG_SEND_MSG = "IG_SEND_MSG",
+    IG_SEND_WITH_AI = "IG_SEND_WITH_AI"
 }
 
 export enum TaskParamType {
@@ -18,6 +23,8 @@ export enum TaskParamType {
     BROWSER_INSTANCE = "BROWSER_INSTANCE",
     SELECT = "SELECT",
     CREDENTIAL = "CREDENTIAL",
+    POPOVER = "POPOVER",
+    TRIGGER = "TRIGGER",
 }
 
 export interface TaskParam {

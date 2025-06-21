@@ -1,5 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { createWorkflowSchema, duplicateWorkflowSchema } from "@/schema/workflow";
+import { createWorkflowSchema, duplicateWorkflowSchema, updateWorkflowSchema } from "@/schema/workflow";
 import type { AppNode } from "@/types/app-node.type";
 import type { Edge } from "@xyflow/react";
 import { CreateFlowNode } from "@/lib/workflow/create-flow-node";
@@ -43,6 +43,11 @@ export const workflowRouter = createTRPCRouter({
             orderBy: {
                 createdAt: "asc",
             },
+        })
+    }),
+    getWorkflowDetails: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+        return await ctx.db.workflow.findUnique({
+            where: { id: input.id, userId: ctx.session.user.id! },
         })
     }),
     delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
@@ -195,7 +200,7 @@ export const workflowRouter = createTRPCRouter({
         });
         return workflow;
     }),
-    update: protectedProcedure.input(z.object({ id: z.string(), definition: z.string() })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(updateWorkflowSchema).mutation(async ({ ctx, input }) => {
         const workflow = await ctx.db.workflow.findUnique({
             where: {
                 id: input.id,

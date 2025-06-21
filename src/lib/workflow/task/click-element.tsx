@@ -28,4 +28,5 @@ export const ClickElementTask = {
             type: TaskParamType.BROWSER_INSTANCE,
         },
     ] as const,
+
 } satisfies WorkflowTask;

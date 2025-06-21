@@ -30,7 +30,7 @@ function CreateWorkflowDialog({ triggerText }: { triggerText?: string }) {
     const [open, setOpen] = useState(false);
     const workflow = api.workflow.create.useMutation();
     const router = useRouter();
-    // const refetch = useRefetch()
+    const refetch = useRefetch()
 
     const form = useForm<createWorkflowSchemaType>({
         resolver: zodResolver(createWorkflowSchema),
@@ -44,8 +44,8 @@ function CreateWorkflowDialog({ triggerText }: { triggerText?: string }) {
         workflow.mutate(data, {
             onSuccess: (data: Workflow) => {
                 toast.success("Project created successfully");
-                router.push(`/workflow/editor/${data.id}`)
-                // refetch()
+                // router.push(`/workflow/editor/${data.id}`)
+                refetch()
             },
             onError: () => {
                 toast.error("Failed to create project");

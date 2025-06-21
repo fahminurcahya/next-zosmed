@@ -2,25 +2,18 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+    provider        = "prisma-client-js"
+    previewFeatures = ["multiSchema"]
 }
 
 datasource db {
     provider = "postgresql"
     url      = env("DATABASE_URL")
-}
-
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([name])
+    schemas  = ["zosmed"]
 }
 
 model User {
-    id            String    @id
+    id            String         @id
     name          String
     email         String
     emailVerified Boolean
@@ -29,9 +22,15 @@ model User {
     updatedAt     DateTime
     sessions      Session[]
     accounts      Account[]
+    Subscription  Subscription?
+    Integrations  Integrations[]
+    Automation    Automation[]
+    Notification  Notification[]
+    Analytics     Analytics[]
 
     @@unique([email])
     @@map("user")
+    @@schema("zosmed")
 }
 
 model Session {
@@ -47,6 +46,7 @@ model Session {
 
     @@unique([token])
     @@map("session")
+    @@schema("zosmed")
 }
 
 model Account {
@@ -66,6 +66,7 @@ model Account {
     updatedAt             DateTime
 
     @@map("account")
+    @@schema("zosmed")
 }
 
 model Verification {
@@ -77,6 +78,20 @@ model Verification {
     updatedAt  DateTime?
 
     @@map("verification")
+    @@schema("zosmed")
+}
+
+model Subscription {
+    id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    User       User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId     String?           @unique
+    createdAt  DateTime          @default(now())
+    plan       SUBSCRIPTION_PLAN @default(FREE)
+    updatedAt  DateTime          @default(now())
+    customerId String?           @unique
+
+    @@map("subscription")
+    @@schema("zosmed")
 }
 
 model Workflow {
@@ -99,6 +114,8 @@ model Workflow {
 
     // User cannot have two workflows with the same name 
     @@unique([name, userId])
+    @@map("workflow")
+    @@schema("zosmed")
 }
 
 model WorkflowExecution {
@@ -114,6 +131,9 @@ model WorkflowExecution {
     creditsConsumed Int              @default(0)
     phases          ExecutionPhase[]
     workflow        Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+    @@map("workflow_execution")
+    @@schema("zosmed")
 }
 
 model ExecutionPhase {
@@ -131,6 +151,9 @@ model ExecutionPhase {
     workflowExecutionId String
     execution           WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
     logs                ExecutionLog[]
+
+    @@map("execution_phase")
+    @@schema("zosmed")
 }
 
 model ExecutionLog {
@@ -140,4 +163,157 @@ model ExecutionLog {
     timestamp        DateTime       @default(now())
     executionPhaseId String
     executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
+
+    @@map("execution_log")
+    @@schema("zosmed")
+}
+
+model Integrations {
+    id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name        INTEGRATIONS @default(INSTAGRAM)
+    createdAt   DateTime     @default(now())
+    User        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      String?
+    token       String       @unique
+    expiresAt   DateTime?
+    instagramId String?      @unique
+
+    @@map("integrations")
+    @@schema("zosmed")
+}
+
+model Automation {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name      String    @default("Untitled")
+    createdAt DateTime  @default(now())
+    active    Boolean   @default(false)
+    trigger   Trigger[]
+    listener  Listener?
+    posts     Post[]
+    dms       Dms[]
+    User      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String?
+    keywords  Keyword[]
+
+    @@map("automation")
+    @@schema("zosmed")
+}
+
+model Dms {
+    id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    Automation   Automation? @relation(fields: [automationId], references: [id])
+    automationId String?     @db.Uuid
+    createdAt    DateTime    @default(now())
+    senderId     String?
+    reciever     String?
+    message      String?
+
+    @@map("dms")
+    @@schema("zosmed")
+}
+
+model Post {
+    id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    postid       String
+    caption      String?
+    media        String
+    mediaType    MEDIATYPE   @default(IMAGE)
+    Automation   Automation? @relation(fields: [automationId], references: [id], onDelete: Cascade)
+    automationId String?     @db.Uuid
+
+    @@map("post")
+    @@schema("zosmed")
+}
+
+model Listener {
+    id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    Automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+    automationId String     @unique @db.Uuid
+    listener     LISTENERS  @default(MESSAGE)
+    prompt       String
+    commentReply String?
+    dmCount      Int        @default(0)
+    commentCount Int        @default(0)
+
+    @@map("listener")
+    @@schema("zosmed")
+}
+
+model Trigger {
+    id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type         String
+    Automation   Automation? @relation(fields: [automationId], references: [id], onDelete: Cascade)
+    automationId String?     @db.Uuid
+
+    @@map("trigger")
+    @@schema("zosmed")
+}
+
+model Keyword {
+    id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    word         String
+    Automation   Automation? @relation(fields: [automationId], references: [id], onDelete: Cascade)
+    automationId String?     @db.Uuid
+
+    @@unique([automationId, word]) //this constraints ensure user cant use the same keyword on multiple automations
+    @@map("keyword")
+    @@schema("zosmed")
+}
+
+model Notification {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    User      User?    @relation(fields: [userId], references: [id])
+    userId    String?
+    isSeen    Boolean  @default(false)
+    content   String
+    createdAt DateTime @default(now())
+
+    @@map("notification")
+    @@schema("zosmed")
+}
+
+model Analytics {
+    id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    userId          String
+    User            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    date            DateTime @default(now())
+    dmCount         Int      @default(0)
+    commentCount    Int      @default(0)
+    postCount       Int      @default(0)
+    automationCount Int      @default(0)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    @@unique([userId, date])
+    @@index([userId, date])
+    @@map("analytics")
+    @@schema("zosmed")
+}
+
+enum SUBSCRIPTION_PLAN {
+    PRO
+    FREE
+
+    @@schema("zosmed")
+}
+
+enum INTEGRATIONS {
+    INSTAGRAM
+
+    @@schema("zosmed")
+}
+
+enum MEDIATYPE {
+    IMAGE
+    VIDEO
+    CAROSEL_ALBUM
+
+    @@schema("zosmed")
+}
+
+enum LISTENERS {
+    SMARTAI
+    MESSAGE
+
+    @@schema("zosmed")
 }

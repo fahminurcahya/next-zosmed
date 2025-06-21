@@ -12,7 +12,7 @@ export default async function SidebarLayout({ children }: { children: React.Reac
         headers: await headers(),
     });
     if (!session?.user) {
-        return redirect("sign-in");
+        return redirect("/sign-in");
     }
     return (
         <SidebarProvider>

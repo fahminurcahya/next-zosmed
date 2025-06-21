@@ -2,6 +2,8 @@
 import type { TaskParam, TaskType } from "./task.type";
 import type { AppNode } from "./app-node.type";
 import type { LucideProps } from "lucide-react";
+import type { ReactNode } from "react";
+import type { Node } from "@xyflow/react";
 
 export enum WorkflowStatus {
   DRAFT = "DRAFT",
@@ -15,6 +17,8 @@ export type WorkflowTask = {
   inputs: TaskParam[];
   outputs: TaskParam[];
   credits: number;
+  dropdownComponent?: React.FC<any>;
+  sidebarComponent?: React.FC;
 };
 
 export type WorkflowExecutionPlanPhase = {

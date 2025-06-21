@@ -4,10 +4,10 @@ import { AlertCircle, InboxIcon } from "lucide-react";
 import CreateWorkflowDialog from "./create-workflow-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/trpc/react";
+import WorkflowCard from "./workflow-card";
 
 export function ListWorkflow() {
     const { data: workflows, isLoading, isError } = api.workflow.getWorkflowsForUser.useQuery();
-    console.log(workflows)
 
     if (isLoading) return <UserWorkflowsSkeleton />;
     if (isError || !workflows) return (
@@ -39,9 +39,9 @@ export function ListWorkflow() {
 
     return (
         <div className="grid grid-cols-1 gap-4">
-            {/* {workflows.map((workflow) => (
-                    <WorkflowCard key={workflow.id} workflow={workflow} />
-                ))} */}
+            {workflows.map((workflow) => (
+                <WorkflowCard key={workflow.id} workflow={workflow} />
+            ))}
         </div>
     );
 

@@ -1,9 +1,6 @@
-import { lazy, Suspense } from "react";
 import CreateWorkflowDialog from "./_components/create-workflow-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-// import { ListWorkflow } from "./_components/list-workflows";
+import { ListWorkflow } from "./_components/list-workflows";
 
-const ListWorkflow = lazy(() => import('./_components/list-workflows').then(mod => ({ default: mod.ListWorkflow })));
 
 
 const Page = () => {

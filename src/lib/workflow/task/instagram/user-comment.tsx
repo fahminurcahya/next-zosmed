@@ -37,11 +37,11 @@ export const IGUserComment = {
                 sourceNodeId={sourceNodeId}
                 sourceHandle="Action"
                 onCreateAndConnect={onCreateAndConnect}
+                isDisable
             />
         </div>
     ),
-    sidebarComponent: () => (
-        <FormUserCommentIG />
-    ),
+    sidebarComponent: FormUserCommentIG,
+
 
 } satisfies WorkflowTask;

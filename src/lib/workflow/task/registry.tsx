@@ -18,6 +18,7 @@ import { IGUserComment } from "./instagram/user-comment";
 import { IGUserDM } from "./instagram/user-dm";
 import { IGSendMessage } from "./instagram/send-msg";
 import { IGSendWithAI } from "./instagram/smart-ai";
+import { IGSendMessageFromDM } from "./instagram/send-msg-dm";
 
 type Registry = {
     [K in TaskType]: WorkflowTask & { type: K };
@@ -40,5 +41,6 @@ export const TaskRegistry: Registry = {
     IG_USER_COMMENT: IGUserComment,
     IG_USER_DM: IGUserDM,
     IG_SEND_MSG: IGSendMessage,
-    IG_SEND_WITH_AI: IGSendWithAI
+    IG_SEND_WITH_AI: IGSendWithAI,
+    IG_SEND_MSG_FROM_DM: IGSendMessageFromDM
 };

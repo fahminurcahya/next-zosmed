@@ -18,7 +18,7 @@ export type WorkflowTask = {
   outputs: TaskParam[];
   credits: number;
   dropdownComponent?: React.FC<any>;
-  sidebarComponent?: React.FC;
+  sidebarComponent?: React.FC<any>;
 };
 
 export type WorkflowExecutionPlanPhase = {

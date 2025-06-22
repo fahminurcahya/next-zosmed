@@ -44,7 +44,7 @@ function CreateWorkflowDialog({ triggerText }: { triggerText?: string }) {
         workflow.mutate(data, {
             onSuccess: (data: Workflow) => {
                 toast.success("Project created successfully");
-                // router.push(`/workflow/editor/${data.id}`)
+                router.push(`/workflow/editor/${data.id}`)
                 refetch()
             },
             onError: () => {

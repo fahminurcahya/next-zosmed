@@ -59,6 +59,22 @@ function FlowEditor({ workflow, onSelectNode }:
             if (!flow.viewport) return;
             const { x = 0, y = 0, zoom = 1 } = flow.viewport;
             setViewport({ x, y, zoom });
+
+            if (flow.nodes?.length > 0) {
+                function getLastNode(nodes: Node[], edges: Edge[]): Node | undefined {
+                    const nodeIdsWithOutgoingEdges = edges.map((edge) => edge.source);
+                    return nodes.find((node) => !nodeIdsWithOutgoingEdges.includes(node.id));
+                }
+
+                const lastNode = getLastNode(flow.nodes, flow.edges);
+                if (lastNode) onSelectNode(lastNode);
+                setNodes((nds) =>
+                    nds.map((node) => ({
+                        ...node,
+                        selected: node.id === lastNode?.id,
+                    }))
+                );
+            }
         } catch (error) { }
     }, [workflow.definition, setEdges, setNodes, setViewport]);
 
@@ -105,13 +121,13 @@ function FlowEditor({ workflow, onSelectNode }:
 
     const createAndConnectNode = useCallback(
         (sourceNodeId: string, sourceHandle: string, taskType: TaskType, position?: { x: number; y: number }) => {
-            console.log('Creating and connecting node:', { sourceNodeId, sourceHandle, taskType });
+            // console.log('Creating and connecting node:', { sourceNodeId, sourceHandle, taskType });
 
             // Create position near the source node if not provided
             const sourceNode = nodes.find(n => n.id === sourceNodeId);
             const nodePosition = position || {
                 x: (sourceNode?.position.x || 0) + 100,
-                y: (sourceNode?.position.y || 0) + 100
+                y: (sourceNode?.position.y || 0) + 250
             };
 
             const newNode = CreateFlowNode(taskType, nodePosition);
@@ -125,7 +141,7 @@ function FlowEditor({ workflow, onSelectNode }:
                 const targetTask = TaskRegistry[taskType];
                 const sourceTask = TaskRegistry[sourceNode!.data.type];
 
-                console.log('Connection details:', { targetTask, sourceTask });
+                // console.log('Connection details:', { targetTask, sourceTask });
 
                 const connection: Connection = {
                     source: sourceNodeId,
@@ -134,14 +150,12 @@ function FlowEditor({ workflow, onSelectNode }:
                     targetHandle: null,  // Required by Connection type
                 };
 
-                console.log('Creating connection:', connection);
-
-                console.log('Creating connection:', connection);
+                // console.log('Creating connection:', connection);
 
                 setEdges((eds) => {
                     try {
                         const result = addEdge({ ...connection, animated: true }, eds);
-                        console.log('Edge created successfully');
+                        // console.log('Edge created successfully');
                         return result;
                     } catch (error) {
                         console.error('Failed to create edge:', error);

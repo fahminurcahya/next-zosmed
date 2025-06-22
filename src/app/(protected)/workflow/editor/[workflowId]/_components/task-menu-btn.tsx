@@ -10,13 +10,16 @@ interface Props {
     sourceNodeId?: string;
     sourceHandle?: string;
     onCreateAndConnect?: (sourceNodeId: string, sourceHandle: string, taskType: TaskType) => void;
+    isDisable?: boolean
+
 }
 
 export function TaskMenuBtn({
     taskType,
     sourceNodeId,
     sourceHandle,
-    onCreateAndConnect
+    onCreateAndConnect,
+    isDisable = false
 }: Props) {
     const task = TaskRegistry[taskType];
 
@@ -33,6 +36,7 @@ export function TaskMenuBtn({
 
     return (
         <Button
+            disabled={isDisable}
             variant={"secondary"}
             className="flex justify-between items-center gap-2 border w-full"
             draggable

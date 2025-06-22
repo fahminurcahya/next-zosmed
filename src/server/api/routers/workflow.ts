@@ -21,13 +21,13 @@ export const workflowRouter = createTRPCRouter({
             };
 
             // Let's add the flow entry point
-            initialFlow.nodes.push(CreateFlowNode(TaskType.LAUNCH_BROWSER));
+            // initialFlow.nodes.push(CreateFlowNode(TaskType.LAUNCH_BROWSER));
 
             const result = await ctx.db.workflow.create({
                 data: {
                     userId: user.id,
                     status: WorkflowStatus.DRAFT,
-                    definition: JSON.stringify(initialFlow),
+                    definition: "",
                     ...input,
                 },
             });

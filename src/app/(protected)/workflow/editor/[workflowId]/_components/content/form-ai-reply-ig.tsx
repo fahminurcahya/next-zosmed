@@ -26,7 +26,7 @@ interface FormReplyIGProps {
     initialData?: IGReplyData;
 }
 
-const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
+const FormAIReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
 
     const { updateNodeData } = useReactFlow();
 
@@ -186,4 +186,4 @@ const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
 }
 
 
-export default FormReplyIG;
+export default FormAIReplyIG;

@@ -1,27 +1,10 @@
 'use client'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-import React, { useEffect } from 'react'
+import React from 'react'
 import { Separator } from '@/components/ui/separator'
-import {
-    Card,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card'
-
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from '@/components/ui/accordion'
 import type { EditorNodeType } from '@/types/app-node.type'
-import { useEditor } from '@/providers/editor-provider'
-import TaskMenu from './task-menu'
-import type { TaskType } from '@/types/task.type'
+import { TaskType } from '@/types/task.type'
 import { TaskRegistry } from '@/lib/workflow/task/registry'
-import type { Node } from '@xyflow/react'
+import { useReactFlow, type Node } from '@xyflow/react'
 import EntrypointMenu from './entrypoint-menu'
 import type { WorkflowTask } from '@/types/workflow.type'
 
@@ -30,7 +13,7 @@ type Props = {
 }
 
 const EditorCanvasSidebar = ({ selectedNode }: { selectedNode: Node<Record<string, unknown>, string | undefined> | null }) => {
-    const { state } = useEditor()
+
 
     if (!selectedNode) {
         return <div className="p-4">
@@ -49,10 +32,34 @@ const EditorCanvasSidebar = ({ selectedNode }: { selectedNode: Node<Record<strin
     const task = TaskRegistry[taskType];
     const SidebarComponent = task.sidebarComponent;
 
+    // Get initial data based on task type
+    let initialData;
+    switch (taskType) {
+        case TaskType.IG_USER_COMMENT:
+            initialData = selectedNode.data?.igUserCommentData;
+            break;
+        case TaskType.IG_SEND_MSG:
+        case TaskType.IG_SEND_MSG_FROM_DM:
+            initialData = selectedNode.data?.igReplyData;
+            break;
+        case TaskType.IG_USER_DM:
+            initialData = selectedNode.data?.igUserDMData;
+            break;
+        default:
+            initialData = undefined;
+            break;
+    }
+
+
     return (
         <>
             <Separator />
-            {SidebarComponent && <SidebarComponent />}
+            {SidebarComponent && (
+                <SidebarComponent
+                    nodeId={selectedNode.id}
+                    initialData={initialData}
+                />
+            )}
         </>
     )
 }

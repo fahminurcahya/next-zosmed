@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ReactFlowProvider, type Node } from "@xyflow/react";
+import { ReactFlowProvider, type Edge, type Node } from "@xyflow/react";
 import type { Workflow } from "@prisma/client";
 import { FlowValidationContextProvider } from "@/components/context/flow-validation-context";
 import { WorkflowStatus } from "@/types/workflow.type";
@@ -10,12 +10,9 @@ import FlowEditor from "./flow-editor";
 import EditorCanvasSidebar from "./editor-canvas-sidebar";
 import Topbar from "./topbar/Topbar";
 
-// import { FlowCanvas } from "./automation-canvas";
 
-// todo 
 function EditorCanvas({ workflow }: { workflow: Workflow }) {
     const [selectedNode, setSelectedNode] = useState<Node<Record<string, unknown>, string | undefined> | null>(null);
-
 
     return (
         <FlowValidationContextProvider>

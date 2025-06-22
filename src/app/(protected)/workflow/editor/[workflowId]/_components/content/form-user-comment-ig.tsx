@@ -6,24 +6,56 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useReactFlow } from "@xyflow/react";
 import { X } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const FormUserCommentIG = () => {
-    // Dummy posts
+export interface IGUserCommentData {
+    selectedPostId?: string;
+    includeKeywords: string[];
+    excludeKeywords: string[];
+}
+
+interface FormUserCommentIGProps {
+    nodeId: string;
+    initialData?: IGUserCommentData;
+}
+
+const FormUserCommentIG = ({ nodeId, initialData }: FormUserCommentIGProps) => {
+    const { updateNodeData } = useReactFlow();
+
+    // Sample posts
     const samplePosts = [
-        { id: "1", src: "/images/post1.jpg", label: "Post 1" },
-        { id: "2", src: "/images/post2.jpg", label: "Post 2" },
-        { id: "3", src: "/images/post3.jpg", label: "Post 3" },
+        { id: "1", src: "https://images.unsplash.com/photo-1556764900-fa065610b0e4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8aW5zdGFncmFtJTIwZmVlZHxlbnwwfHwwfHx8MA%3D%3D", label: "Post 1" },
+        { id: "2", src: "https://images.unsplash.com/photo-1518991043280-1da61d9f3ac5?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fGluc3RhZ3JhbSUyMGZlZWR8ZW58MHx8MHx8fDA%3D", label: "Post 2" },
+        { id: "3", src: "https://images.unsplash.com/photo-1647964186307-7589f0b34bce?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8aW5zdGFncmFtJTIwZmVlZHxlbnwwfHwwfHx8MA%3D%3D", label: "Post 3" },
     ];
 
-    const [includeKeywords, setIncludeKeywords] = useState(["Mau", "mauuu", "keren", "Mau bg"]);
-    const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
+    // Initialize state with existing data or defaults
+    const [selectedPostId, setSelectedPostId] = useState(initialData?.selectedPostId || "1");
+    const [includeKeywords, setIncludeKeywords] = useState(
+        initialData?.includeKeywords || ["Mau", "mauuu", "keren", "Mau bg"]
+    );
+    const [excludeKeywords, setExcludeKeywords] = useState<string[]>(
+        initialData?.excludeKeywords || []
+    );
+
     const [inputInclude, setInputInclude] = useState("");
     const [inputExclude, setInputExclude] = useState("");
-    const [replies, setReplies] = useState(["Oke Cek Dm Sekarang !", "Wah gercep nih, cek dm ya 🖤"]);
-    const [newReply, setNewReply] = useState("");
+
+    // Update node data whenever form state changes
+    useEffect(() => {
+        const nodeData: IGUserCommentData = {
+            selectedPostId,
+            includeKeywords,
+            excludeKeywords,
+        };
+
+        updateNodeData(nodeId, {
+            igUserCommentData: nodeData,
+        });
+    }, [selectedPostId, includeKeywords, excludeKeywords, nodeId, updateNodeData]);
 
 
     const addKeyword = (type: "include" | "exclude") => {
@@ -47,18 +79,17 @@ const FormUserCommentIG = () => {
         }
     };
 
-    const addReply = () => {
-        if (!newReply.trim()) return;
-        setReplies((prev) => [...prev, newReply.trim()]);
-        setNewReply("");
-    };
-
-    const removeReply = (index: number) => {
-        setReplies((prev) => prev.filter((_, i) => i !== index));
+    const handleSave = () => {
+        // Optional: Add validation or additional save logic here
+        console.log('Form saved with data:', {
+            selectedPostId,
+            includeKeywords,
+            excludeKeywords
+        });
     };
 
     return (
-        <aside className=" h-full flex flex-col border-l bg-white">
+        <aside className="h-full flex flex-col border-l bg-white">
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-28">
                 <div>
                     <h1 className="text-lg font-semibold mt-1">
@@ -70,7 +101,13 @@ const FormUserCommentIG = () => {
                     <CardContent className="pt-4">
                         <h3 className="text-sm font-medium mb-2">Specific Post or Reel</h3>
                         <ScrollArea className="h-72 rounded-md border">
-                            <RadioGroup defaultValue="1" className="grid grid-cols-3 gap-2">
+
+                            {/* // todo change radiobox tobe combo box */}
+                            <RadioGroup
+                                value={selectedPostId}
+                                onValueChange={setSelectedPostId}
+                                className="grid grid-cols-3 gap-2"
+                            >
                                 {samplePosts.map((post) => (
                                     <label
                                         key={post.id}
@@ -104,12 +141,17 @@ const FormUserCommentIG = () => {
 
                     {/* Include Section */}
                     <div className="space-y-2 mb-4">
-                        <p className="text-sm text-muted-foreground">Comments <strong>include</strong> these Keywords:</p>
+                        <p className="text-sm text-muted-foreground">
+                            Comments <strong>include</strong> these Keywords:
+                        </p>
                         <div className="flex flex-wrap gap-2">
                             {includeKeywords.map((kw, i) => (
                                 <div key={i} className="flex items-center px-3 py-1 text-sm border rounded-full bg-muted gap-1">
                                     <span>{kw}</span>
-                                    <button onClick={() => removeKeyword("include", i)} className="text-muted-foreground hover:text-destructive">
+                                    <button
+                                        onClick={() => removeKeyword("include", i)}
+                                        className="text-muted-foreground hover:text-destructive"
+                                    >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -124,18 +166,42 @@ const FormUserCommentIG = () => {
                         </div>
                     </div>
 
-                    <p className="text-xs text-muted-foreground mt-4">
-                        Keywords are not case-sensitive, e.g. "Hello" and "hello" are recognised as the same.
-                    </p>
+                    {/* Exclude Section */}
+                    <div className="space-y-2 mb-4">
+                        <p className="text-sm text-muted-foreground">
+                            Comments <strong>exclude</strong> these Keywords:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {excludeKeywords.map((kw, i) => (
+                                <div key={i} className="flex items-center px-3 py-1 text-sm border rounded-full bg-muted gap-1">
+                                    <span>{kw}</span>
+                                    <button
+                                        onClick={() => removeKeyword("exclude", i)}
+                                        className="text-muted-foreground hover:text-destructive"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+                            <Input
+                                placeholder="+ Keyword"
+                                value={inputExclude}
+                                onChange={(e) => setInputExclude(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && addKeyword("exclude")}
+                                className="w-auto h-8 text-sm px-3 py-1 border-dashed border border-muted rounded-full"
+                            />
+                        </div>
+                    </div>
                 </Card>
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t bg-white">
-                <Button className="w-full">
-                    Save
+
+            {/* <div className="p-4 border-t bg-white">
+                <Button className="w-full" onClick={handleSave}>
+                    Save Configuration
                 </Button>
-            </div>
+            </div> */}
         </aside>
     );
 }

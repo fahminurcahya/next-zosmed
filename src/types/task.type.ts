@@ -15,7 +15,9 @@ export enum TaskType {
     IG_USER_COMMENT = "IG_USER_COMMENT",
     IG_USER_DM = "IG_USER_DM",
     IG_SEND_MSG = "IG_SEND_MSG",
-    IG_SEND_WITH_AI = "IG_SEND_WITH_AI"
+    IG_SEND_WITH_AI = "IG_SEND_WITH_AI",
+    IG_SEND_MSG_FROM_DM = "IG_SEND_MSG_FROM_DM",
+
 }
 
 export enum TaskParamType {

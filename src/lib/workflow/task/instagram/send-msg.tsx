@@ -13,16 +13,10 @@ export const IGSendMessage = {
     isEntryPoint: false,
     credits: 1,
     inputs: [
-        // {
-        //     name: "Action",
-        //     type: TaskParamType.TRIGGER,
-        //     required: true,
-        // },
+
     ] as const,
     outputs: [
     ] as const,
-    sidebarComponent: () => (
-        <FormReplyIG />
-    )
+    sidebarComponent: FormReplyIG
 
 } satisfies WorkflowTask;

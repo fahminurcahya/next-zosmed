@@ -35,8 +35,8 @@ const items = [
         icon: Bot,
     },
     {
-        title: "Credentials",
-        url: "/credentials",
+        title: "Integrations",
+        url: "/integrations",
         icon: Shield,
     },
     {
@@ -74,7 +74,7 @@ export function AppSidebar() {
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild>
                                         <Link href={item.url} className={cn({
-                                            '!bg-primary !text-white': pathname === item.url,
+                                            'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 !text-white': pathname === item.url,
                                         })}>
                                             <item.icon />
                                             <span>{item.title}</span>

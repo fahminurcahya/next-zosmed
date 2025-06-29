@@ -20,6 +20,18 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        warning:
+          "border-transparent bg-yellow-500 text-white [a&]:hover:bg-yellow-600",
+        gradient:
+          "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 !text-white",
+        ocean:
+          "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 !text-white",
+        indigo:
+          "bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 !text-white",
+        bluepurp:
+          "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 !text-white",
+        darkblue:
+          "bg-gradient-to-r from-blue-800 to-blue-600 hover:from-blue-900 hover:to-blue-700 !text-white"
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -29,7 +41,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "ocean",
       size: "default",
     },
   }

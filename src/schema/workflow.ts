@@ -1,8 +1,13 @@
+import { WorkflowTriggerType } from "@prisma/client";
 import { z } from "zod";
 
 export const createWorkflowSchema = z.object({
-  name: z.string().max(50),
-  description: z.string().max(80).optional(),
+  integrationId: z.string().min(1, "Please select an Instagram account"),
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  triggerType: z.nativeEnum(WorkflowTriggerType),
+  definition: z.any().default(""),
+  isActive: z.boolean().default(false).optional(),
 });
 
 export type createWorkflowSchemaType = z.infer<typeof createWorkflowSchema>;

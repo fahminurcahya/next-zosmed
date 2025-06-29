@@ -3,7 +3,7 @@ import type { TaskParam, TaskType } from "./task.type";
 import type { AppNode } from "./app-node.type";
 import type { LucideProps } from "lucide-react";
 import type { ReactNode } from "react";
-import type { Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 
 export enum WorkflowStatus {
   DRAFT = "DRAFT",
@@ -52,3 +52,13 @@ export type Registry = {
   // todo
   [K in TaskType.CLICK_ELEMENT | TaskType.ADD_PROPERTY_TO_JSON]: WorkflowTask & { type: K };
 };
+
+export interface WorkflowDefinition {
+  nodes: AppNode[];
+  edges: Edge[];
+  viewport: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+}

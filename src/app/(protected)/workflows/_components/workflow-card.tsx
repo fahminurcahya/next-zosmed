@@ -3,236 +3,189 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-    ChevronRightIcon,
-    ClockIcon,
-    CoinsIcon,
-    CornerDownRightIcon,
-    FileTextIcon,
-    MoreVerticalIcon,
-    MoveRightIcon,
-    PlayIcon,
-    ShuffleIcon,
-    TrashIcon,
-} from "lucide-react";
 import Link from "next/link";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
-
-import { format, formatDistanceToNow } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatDistanceToNow } from "date-fns";
 import type { Workflow } from "@prisma/client";
-import TooltipWrapper from "@/components/global/tooltip-wrapper";
-import DuplicateWorkflowDialog from "./duplicate-workflow-dialog";
+import { WorkflowStatus } from "@/types/workflow.type";
+import {
+    BarChart3,
+    Clock,
+    Instagram,
+    MoreVertical,
+    Play,
+    TrendingUp,
+    MessageCircle,
+    CheckCircle2,
+    Settings,
+    Pause
+} from "lucide-react";
+import { WorkflowActions } from "./workflow-actions";
 import RunBtn from "./run-btn";
-import DeleteWorkflowDialog from "./delete-workflow-dialog";
-import { WorkflowExecutionStatus, WorkflowStatus } from "@/types/workflow.type";
+import { StatusBadge } from "./status-badge";
 
-const statusColors = {
-    [WorkflowStatus.DRAFT]: "bg-yellow-400 text-yellow-600",
-    [WorkflowStatus.PUBLISHED]: "bg-primary",
-};
-
+// Enhanced Workflow Card Component
 function WorkflowCard({ workflow }: { workflow: Workflow }) {
-    const isDraft = workflow.status === WorkflowStatus.DRAFT;
+    const isActive = workflow.status === WorkflowStatus.PUBLISHED;
+
+    // Mock data for demo - you can replace with real data
+    const todayExecutions = 24;
+    const successRate = 98;
+    const avgResponseTime = 0.3;
 
     return (
-        <Card className="border border-separate shadow-sm rounded-lg overflow-hidden hover:shadow-md dark:shadow-primary/30 group/card">
-            <CardContent className="p-4 flex items-center justify-between h-[100px]">
-                <div className="flex items-center justify-end space-x-3">
-                    <div
-                        className={cn(
-                            "w-10 h-10 rounded-full flex items-center justify-center",
-                            statusColors[workflow.status as WorkflowStatus]
-                        )}
-                    >
-                        {isDraft ? (
-                            <FileTextIcon className="h-5 w-5" />
-                        ) : (
-                            <PlayIcon className="h-5 w-5 text-white" />
-                        )}
-                    </div>
-                    <div>
-                        <h3 className="text-base font-bold text-muted-foreground flex items-center">
-                            <TooltipWrapper content={workflow.description}>
+        <Card className="group bg-white border border-gray-200 hover:shadow-md transition-all duration-200 rounded-lg overflow-hidden">
+            <CardContent className="p-5">
+                {/* Header Section */}
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-3 flex-1">
+                        {/* Instagram Icon */}
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                            <MessageCircle className="h-6 w-6 text-white" />
+                        </div>
+
+                        {/* Workflow Info */}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
                                 <Link
                                     href={`/workflow/editor/${workflow.id}`}
-                                    className="flex items-center hover:underline"
+                                    className="text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate"
                                 >
                                     {workflow.name}
                                 </Link>
-                            </TooltipWrapper>
-                            {isDraft && (
-                                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                                    Draft
-                                </span>
-                            )}
 
-                            <DuplicateWorkflowDialog workflowId={workflow.id} />
-                        </h3>
-                        <ScheduleSection
-                            isDraft={isDraft}
-                            creditsCost={workflow.creditsCost}
-                            workflowId={workflow.id}
-                            cron={workflow.cron}
-                        />
+                                {/* Status Badges */}
+                                {workflow.cron && (
+                                    <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 text-xs px-2 py-0.5">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Event-Driven
+                                    </Badge>
+                                )}
+
+                                <StatusBadge status={workflow.status} />
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                                {workflow.description || 'Automatically reply to Instagram direct messages with personalized responses'}
+                            </p>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                    {!isDraft && <RunBtn workflowId={workflow.id} />}
-                    <Link
-                        href={`/workflow/editor/${workflow.id}`}
-                        className={cn(
-                            buttonVariants({
-                                variant: "outline",
-                                size: "sm",
-                            }),
-                            "flex items-center gap-2"
-                        )}
-                    >
-                        <ShuffleIcon size={16} />
-                        Edit
-                    </Link>
+
+                    {/* Actions Menu */}
                     <WorkflowActions
                         workflowName={workflow.name}
                         workflowId={workflow.id}
                     />
                 </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-4 gap-4 mb-4">
+                    {/* Today Executions */}
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                            <BarChart3 className="h-4 w-4" />
+                            <span className="text-xs">Today</span>
+                        </div>
+                        <p className="text-xl font-bold text-gray-900">{todayExecutions}</p>
+                    </div>
+
+                    {/* Success Rate */}
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                            <TrendingUp className="h-4 w-4" />
+                            <span className="text-xs">Success Rate</span>
+                        </div>
+                        <p className="text-xl font-bold text-gray-900">{successRate}%</p>
+                    </div>
+
+                    {/* Avg Response Time */}
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                            <Clock className="h-4 w-4" />
+                            <span className="text-xs">Avg Response</span>
+                        </div>
+                        <p className="text-xl font-bold text-gray-900">{avgResponseTime}s</p>
+                    </div>
+
+                    {/* Last Triggered */}
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                            <Clock className="h-4 w-4" />
+                            <span className="text-xs">Last Triggered</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">
+                            {workflow.lastRunAt
+                                ? formatDistanceToNow(workflow.lastRunAt, { addSuffix: true })
+                                : 'Never'
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                {/* Trigger Info */}
+                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                    <Instagram className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">Instagram • Triggers on new dm</span>
+
+                    {isActive && (
+                        <Badge className="ml-auto bg-green-50 text-green-700 border-green-200 hover:bg-green-50 text-xs">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" />
+                            Listening
+                        </Badge>
+                    )}
+                </div>
+
+                {/* Footer Info */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <span>Created {workflow.createdAt && formatDistanceToNow(workflow.createdAt, { addSuffix: true })}</span>
+                        <span>289 total triggers</span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7 px-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        >
+                            <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                            Analytics
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="text-xs h-7 px-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        >
+                            <Link href={`/workflow/editor/${workflow.id}`}>
+                                <Settings className="h-3.5 w-3.5 mr-1.5" />
+                                Configure
+                            </Link>
+                        </Button>
+
+                        {isActive ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-3 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    // Handle pause logic here
+                                }}
+                            >
+                                <Pause className="h-3.5 w-3.5 mr-1.5" />
+                                Pause
+                            </Button>
+                        ) : (
+                            <RunBtn workflowId={workflow.id} />
+                        )}
+                    </div>
+                </div>
             </CardContent>
-            <LastRunDetails workflow={workflow} />
         </Card>
-    );
-}
-
-function WorkflowActions({
-    workflowName,
-    workflowId,
-}: {
-    workflowId: string;
-    workflowName: string;
-}) {
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    return (
-        <>
-            <DeleteWorkflowDialog
-                open={showDeleteDialog}
-                setOpen={setShowDeleteDialog}
-                workflowName={workflowName}
-                workflowId={workflowId}
-            />
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant={"outline"} size={"sm"}>
-                        <TooltipWrapper content={"More actions"}>
-                            <div className="flex items-center justify-center w-full h-full ">
-                                <MoreVerticalIcon size={18} />
-                            </div>
-                        </TooltipWrapper>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        className="text-destructive flex items-center gap-2"
-                        onSelect={() => {
-                            setShowDeleteDialog((prev) => !prev);
-                        }}
-                    >
-                        <TrashIcon size={16} />
-                        Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </>
-    );
-}
-
-function ScheduleSection({
-    isDraft,
-    creditsCost,
-    workflowId,
-    cron,
-}: {
-    isDraft: boolean;
-    creditsCost: number;
-    workflowId: string;
-    cron: string | null;
-}) {
-    if (isDraft) return null;
-    return (
-        <div className="flex items-center gap-2">
-            <CornerDownRightIcon className="h-4 w-4 text-muted-foreground" />
-            {/* todo  */}
-            {/* <SchedulerDialog
-                workflowId={workflowId}
-                cron={cron}
-                key={`${cron}-${workflowId}`}
-            /> */}
-            <MoveRightIcon className="h-4 w-4 text-muted-foreground" />
-            <TooltipWrapper content="Credit consumption for full run">
-                <div className="flex itemscenter gap-3">
-                    <Badge
-                        variant={"outline"}
-                        className="space-x-2 text-muted-foreground rounded-sm"
-                    >
-                        <CoinsIcon className="h-4 w-4" />
-                        <span className="text-sm">{creditsCost}</span>
-                    </Badge>
-                </div>
-            </TooltipWrapper>
-        </div>
-    );
-}
-
-function LastRunDetails({ workflow }: { workflow: Workflow }) {
-    const isDraft = workflow.status === WorkflowStatus.DRAFT;
-    if (isDraft) {
-        return null;
-    }
-    const { lastRunAt, lastRunStatus, lastRunId, nextRunAt } = workflow;
-    const formattedStartedAt =
-        lastRunAt && formatDistanceToNow(lastRunAt, { addSuffix: true });
-
-    const nextSchedule = nextRunAt && format(nextRunAt, "yyyy-MM-dd HH:mm");
-    const nextScheduleUTC =
-        nextRunAt && formatInTimeZone(nextRunAt, "UTC", "HH:mm");
-    return (
-        <div className="bg-primary/5 px-4 py-1 flex justify-between items-center text-muted-foreground">
-            <div className="flex items-center text-sm gap-2">
-                {lastRunAt && (
-                    <Link
-                        href={`/workflow/runs/${workflow.id}/${lastRunId}`}
-                        className="flex items-center text-sm gap-2 group"
-                    >
-                        <span>Last run:</span>
-                        <span>{formattedStartedAt}</span>
-                        <ChevronRightIcon
-                            size={14}
-                            className="-translate-x-[2px] group-hover:translate-x-0 transition"
-                        />
-                    </Link>
-                )}
-                {!lastRunAt && <p>No runs yet</p>}
-            </div>
-            {nextRunAt && (
-                <div className="flex items-center text-sm gap-2">
-                    <ClockIcon size={12} />
-                    <span>Next run at:</span>
-                    <span>{nextSchedule}</span>
-                    <span className="text-xs">({nextScheduleUTC} UTC)</span>
-                </div>
-            )}
-        </div>
     );
 }
 

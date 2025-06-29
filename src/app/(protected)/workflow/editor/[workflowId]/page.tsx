@@ -3,9 +3,9 @@
 import { api } from "@/trpc/react";
 import React, { use, useEffect } from "react";
 import NotFoundPage from "@/app/not-found";
-import Loading from "../../../editors/loading";
 import EditorCanvas from "./_components/editor-canvas";
 import { useSidebar } from "@/components/ui/sidebar";
+import Loading from "./loading";
 
 function Page({ params }: { params: Promise<{ workflowId: string }> }) {
     const { setOpen } = useSidebar()

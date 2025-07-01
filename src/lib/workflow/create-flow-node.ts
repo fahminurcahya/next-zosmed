@@ -2,6 +2,24 @@ import type { AppNode } from "@/types/app-node.type";
 import { TaskType } from "@/types/task.type";
 
 
+const defaultSafetyConfig = {
+    enabled: true,
+    mode: 'safe' as const,
+    customLimits: {
+        maxRepliesPerHour: 15,
+        maxRepliesPerDay: 100,
+        delayBetweenReplies: [8, 20] as [number, number]
+    },
+    contentRules: {
+        enableCommentReply: true,
+        enableDMReply: true,
+        maxMentions: 1,
+        maxHashtags: 2
+    }
+};
+
+
+
 export function CreateFlowNode(
     nodeType: TaskType,
     position?: { x: number; y: number }
@@ -25,6 +43,7 @@ export function CreateFlowNode(
             publicReplies: [],
             dmMessage: "",
             buttons: [],
+            safetyConfig: defaultSafetyConfig,
         };
     }
 
@@ -39,11 +58,10 @@ export function CreateFlowNode(
         nodeData.igReplyData = {
             dmMessage: "",
             buttons: [],
+            safetyConfig: defaultSafetyConfig,
         };
     }
-    console.log("create node")
-
-    console.log(nodeData)
+    console.log("create node with safety defaults", nodeData);
 
     return {
         id: crypto.randomUUID(),

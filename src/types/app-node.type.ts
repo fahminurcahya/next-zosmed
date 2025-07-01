@@ -3,7 +3,6 @@ import type { Node } from "@xyflow/react";
 import type { TaskParam, TaskType } from "./task.type";
 
 export interface AppNodeData {
-    safetySettings?: SafetySettings;
     type: TaskType;
     inputs: Record<string, string>;
     [key: string]: any;
@@ -127,6 +126,42 @@ export interface SafetySettings {
         enabled: boolean;
         days?: number;
         actionsPerDay?: number;
+    };
+}
+
+export interface IGUserCommentData {
+    selectedPostId?: string;
+    includeKeywords: string[];
+    excludeKeywords: string[];
+}
+
+export interface IGUserDMData {
+    includeKeywords: string[];
+}
+
+export interface IGReplyData {
+    publicReplies: string[];
+    dmMessage: string;
+    buttons: Array<{
+        title: string;
+        url: string;
+        enabled: boolean;
+    }>;
+    // NEW: Optional safety config (backward compatible)
+    safetyConfig?: {
+        enabled: boolean;
+        mode: 'safe' | 'balanced' | 'aggressive' | 'custom';
+        customLimits?: {
+            maxRepliesPerHour: number;
+            maxRepliesPerDay: number;
+            delayBetweenReplies: [number, number];
+        };
+        contentRules: {
+            enableCommentReply: boolean;
+            enableDMReply: boolean;
+            maxMentions: number;
+            maxHashtags: number;
+        };
     };
 }
 

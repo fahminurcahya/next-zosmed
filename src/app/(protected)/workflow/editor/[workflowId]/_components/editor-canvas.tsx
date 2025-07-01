@@ -27,7 +27,7 @@ function EditorCanvas({ workflow }: { workflow: Workflow }) {
 
                     <section className="flex h-full overflow-auto">
                         <ResizablePanelGroup direction="horizontal">
-                            <ResizablePanel defaultSize={70}>
+                            <ResizablePanel defaultSize={65}>
                                 <FlowEditor
                                     workflow={workflow}
                                     onSelectNode={setSelectedNode}
@@ -36,7 +36,7 @@ function EditorCanvas({ workflow }: { workflow: Workflow }) {
                             </ResizablePanel>
                             <ResizableHandle />
                             <ResizablePanel
-                                defaultSize={30}
+                                defaultSize={35}
                                 className="relative sm:block"
                             >
                                 <EditorCanvasSidebar selectedNode={selectedNode} />

@@ -154,75 +154,81 @@ const NodeComponent = memo((props: NodeProps) => {
                 )}
 
 
-                {/* Enhanced Instagram Reply Configuration Display */}
                 {(nodeData.type === TaskType.IG_SEND_MSG || nodeData.type === TaskType.IG_SEND_MSG_FROM_DM) && igReplyData && (
-                    <ConfigurationDisplay title="Reply Settings">
+                    <ConfigurationDisplay title="Reply + Safety Settings">
+                        {/* Safety Status */}
+                        {igReplyData.safetyConfig && (
+                            <ConfigItem
+                                label="Safety Mode"
+                                value={igReplyData.safetyConfig.mode.toUpperCase()}
+                                icon={
+                                    igReplyData.safetyConfig.mode === 'safe' ? '🟢' :
+                                        igReplyData.safetyConfig.mode === 'balanced' ? '🟡' : '🟠'
+                                }
+                            />
+                        )}
+
+                        {/* Rate Limits */}
+                        {igReplyData.safetyConfig?.customLimits && (
+                            <ConfigItem
+                                label="Rate Limit"
+                                value={`${igReplyData.safetyConfig.customLimits.maxRepliesPerHour}/hour`}
+                                icon="⚡"
+                            />
+                        )}
+
+                        {/* Reply Templates */}
                         {igReplyData.publicReplies?.length > 0 && (
                             <ConfigItem
-                                label="Public Replies"
+                                label="Comment Replies"
                                 value={`${igReplyData.publicReplies.length} template${igReplyData.publicReplies.length !== 1 ? 's' : ''}`}
                                 icon="💬"
                             />
                         )}
 
+                        {/* DM Status */}
                         {igReplyData.dmMessage && (
-                            <div className="space-y-2">
-                                <ConfigItem
-                                    label="Direct Message"
-                                    value=""
-                                    icon="📩"
-                                />
-                                <div className="pl-5">
-                                    <FormattedMessage message={igReplyData.dmMessage} maxLength={150} />
-                                </div>
-                            </div>
+                            <ConfigItem
+                                label="Follow-up DM"
+                                value={igReplyData.safetyConfig?.contentRules.enableDMReply ? 'Enabled' : 'Disabled'}
+                                icon="📩"
+                            />
                         )}
 
+                        {/* CTA Buttons */}
                         {igReplyData.buttons?.length > 0 && (
-                            <div className="space-y-1">
-                                <ConfigItem
-                                    label="Action Buttons"
-                                    value={`${igReplyData.buttons.length} button${igReplyData.buttons.length !== 1 ? 's' : ''}`}
-                                    icon="🔘"
-                                />
-                                <div className="flex flex-wrap gap-1 pl-5">
-                                    {igReplyData.buttons.slice(0, 3).map((button: { title: string; url: string; enabled: boolean }, index: number) => (
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-500 dark:text-slate-400">🔗</span>
+                                <span className="font-medium text-slate-700 dark:text-slate-300">CTA Buttons:</span>
+                                <div className="flex flex-wrap gap-1 flex-1">
+                                    {igReplyData.buttons.slice(0, 2).map((button: { title: string, url: string, enabled: boolean }, index: number) => (
                                         <span
                                             key={index}
-                                            className={cn(
-                                                "px-2 py-1 rounded text-xs font-medium",
-                                                button.enabled
-                                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 opacity-50"
-                                            )}
+                                            className={`px-1 py-0.5 rounded text-xs ${button.enabled
+                                                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 opacity-50"
+                                                }`}
                                         >
                                             {button.title || `Button ${index + 1}`}
                                         </span>
                                     ))}
-                                    {igReplyData.buttons.length > 3 && (
-                                        <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-xs opacity-70">
-                                            +{igReplyData.buttons.length - 3} more
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         )}
 
-                        {!igReplyData.publicReplies?.length && !igReplyData.dmMessage && !igReplyData.buttons?.length && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-2">
-                                No reply configuration set
+                        {/* Safety Warning for Aggressive Mode */}
+                        {igReplyData.safetyConfig?.mode === 'aggressive' && (
+                            <div className="text-xs text-orange-600 dark:text-orange-400 italic text-center py-1 bg-orange-50 dark:bg-orange-900/20 rounded">
+                                ⚠️ High-risk mode active
                             </div>
                         )}
-                    </ConfigurationDisplay>
-                )}
 
-                {nodeData.type === TaskType.IG_SAFETY_CONFIG && nodeData.safetySettings && (
-                    <ConfigurationDisplay title="Safety Settings">
-                        <ConfigItem
-                            label="Mode"
-                            value={nodeData.safetySettings.enabled ? 'ENABLED' : 'UNSAFE'}
-                            icon="🛡️"
-                        />
+                        {/* No Configuration State */}
+                        {!igReplyData.publicReplies?.length && !igReplyData.dmMessage && !igReplyData.buttons?.length && (
+                            <div className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-2">
+                                No configuration set
+                            </div>
+                        )}
                     </ConfigurationDisplay>
                 )}
 

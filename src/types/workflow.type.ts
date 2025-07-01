@@ -35,11 +35,6 @@ export enum WorkflowExecutionStatus {
   FAILED = "FAILED",
 }
 
-export enum WorkflowExecutionTrigger {
-  MANUAL = "MANUAL",
-  CRON = "CRON",
-}
-
 export enum ExecutionPhaseStatus {
   CREATED = "CREATED",
   PENDING = "PENDING",
@@ -53,12 +48,41 @@ export type Registry = {
   [K in TaskType.CLICK_ELEMENT | TaskType.ADD_PROPERTY_TO_JSON]: WorkflowTask & { type: K };
 };
 
-export interface WorkflowDefinition {
-  nodes: AppNode[];
-  edges: Edge[];
-  viewport: {
-    x: number;
-    y: number;
-    zoom: number;
-  };
-}
+// export interface WorkflowDefinition {
+//   nodes: AppNode[];
+//   edges: Edge[];
+//   viewport: {
+//     x: number;
+//     y: number;
+//     zoom: number;
+//   };
+// }
+
+// export interface WorkflowDefinition {
+//   nodes: Array<{
+//     id: string;
+//     type: string;
+//     data: {
+//       type: string;
+//       inputs: any;
+//       igUserCommentData?: {
+//         selectedPostId: string;
+//         includeKeywords: string[];
+//         excludeKeywords: string[];
+//       };
+//       igReplyData?: {
+//         publicReplies: string[];
+//         dmMessage: string;
+//         buttons?: Array<{
+//           title: string;
+//           url: string;
+//           enabled: boolean;
+//         }>;
+//       };
+//     };
+//   }>;
+//   edges: Array<{
+//     source: string;
+//     target: string;
+//   }>;
+// }

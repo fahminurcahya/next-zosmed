@@ -20,7 +20,9 @@ import {
     Plus, Search, Filter, Zap, MessageCircle,
     BarChart3, Clock, AlertCircle, MoreVertical,
     PlayCircle, PauseCircle, Copy, Trash2, Edit,
-    Instagram, TrendingUp, Activity
+    Instagram, TrendingUp, Activity,
+    Shield,
+    AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -244,7 +246,6 @@ export default function WorkflowsPage() {
                                         <SelectItem value="ALL">All Triggers</SelectItem>
                                         <SelectItem value="COMMENT_RECEIVED">Comments</SelectItem>
                                         <SelectItem value="DM_RECEIVED">Direct Messages</SelectItem>
-                                        <SelectItem value="MANUAL">Manual</SelectItem>
                                     </SelectContent>
                                 </Select>
 
@@ -356,6 +357,11 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
         }
     };
 
+    const definition = JSON.parse(workflow.definition);
+    const safetyMode = !definition.safetySettings?.enabled ? 'unsafe' :
+        definition.safetySettings.useRecommendedLimits ? 'safe' :
+            'custom';
+
     return (
         <Card className="group h-full overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300">
             {/* Header */}
@@ -363,6 +369,16 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                         <h3 className="font-semibold text-lg line-clamp-1">{workflow.name}</h3>
+                        <Badge variant={
+                            safetyMode === 'safe' ? 'success' :
+                                safetyMode === 'custom' ? 'warning' :
+                                    'destructive'
+                        }>
+                            {safetyMode === 'safe' && <Shield className="h-3 w-3 mr-1" />}
+                            {safetyMode === 'custom' && <Zap className="h-3 w-3 mr-1" />}
+                            {safetyMode === 'unsafe' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                            {safetyMode.toUpperCase()} MODE
+                        </Badge>
                         {workflow.integration && (
                             <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                 <Instagram className="h-3 w-3" />

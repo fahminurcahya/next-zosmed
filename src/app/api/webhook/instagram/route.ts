@@ -3,11 +3,11 @@ import crypto from "crypto";
 import { headers } from "next/headers";
 import { db } from "@/server/db";
 import { InstagramService } from "@/server/services/instagram-service";
-import { WorkflowExecutor } from "@/server/services/workflow-executor";
+import { FlexibleWorkflowExecutor } from "@/server/services/flexible-workflow-executor";
 
 // Initialize services
 const instagramService = new InstagramService();
-const workflowExecutor = new WorkflowExecutor(db, instagramService);
+
 
 // Verify webhook signature
 function verifySignature(payload: string, signature: string): boolean {
@@ -63,44 +63,71 @@ export async function POST(request: NextRequest) {
     }
 }
 
+
 // Process webhook data
 async function processWebhook(data: any) {
     for (const entry of data.entry) {
         const instagramAccountId = entry.id;
 
-        // Find integration
-        const integration = await db.integrations.findFirst({
-            where: { instagramId: instagramAccountId },
-            include: { User: true },
+        // Find integration by Instagram account ID
+        const integration = await db.integration.findUnique({
+            where: { accountId: instagramAccountId },
+            include: { user: true }
         });
 
         if (!integration) {
-            console.error("Integration not found for Instagram account:", instagramAccountId);
+            console.log(`No integration found for account ${instagramAccountId}`);
             continue;
         }
 
-        // Handle changes (comments, mentions, etc)
-        if (entry.changes) {
-            for (const change of entry.changes) {
-                if (change.field === "comments") {
-                    await handleCommentWebhook(change.value, integration);
-                }
-            }
-        }
-
-        // Handle messaging
-        if (entry.messaging) {
-            for (const message of entry.messaging) {
-                await handleMessageWebhook(message, integration);
+        // Process each change
+        for (const change of entry.changes) {
+            if (change.field === 'comments') {
+                await handleCommentWebhook(integration, change.value);
+            } else if (change.field === 'messages') {
+                await handleMessageWebhook(integration, change.value);
             }
         }
     }
 }
 
 // Handle comment webhook
-async function handleCommentWebhook(commentData: any, integration: any) {
+async function handleCommentWebhook(integration: any, commentData: any) {
     try {
-        console.log("Processing comment webhook:", commentData);
+        const { id: commentId, text, from, media } = commentData;
+        // Save comment to database
+        const comment = await db.comment.upsert({
+            where: { commentId },
+            update: {
+                text,
+                username: from.username,
+            },
+            create: {
+                integrationId: integration.id,
+                commentId,
+                postId: media.id,
+                userId: from.id,
+                username: from.username,
+                text,
+            }
+        });
+
+        // Find active workflows for comment triggers
+        const workflows = await db.workflow.findMany({
+            where: {
+                integrationId: integration.id,
+                isActive: true,
+                triggerType: 'COMMENT_RECEIVED'
+            }
+        });
+
+        // Execute each workflow
+        for (const workflow of workflows) {
+            await FlexibleWorkflowExecutor.execute(workflow, {
+                type: 'COMMENT_RECEIVED',
+                data: comment
+            });
+        }
 
         // Check if comment already processed
         const existingComment = await db.comment.findUnique({
@@ -120,49 +147,50 @@ async function handleCommentWebhook(commentData: any, integration: any) {
                 integration.token
             );
         }
-
-        // Save or update comment
-        await db.comment.upsert({
-            where: { commentId: fullCommentData.id },
-            update: {
-                text: fullCommentData.text,
-            },
-            create: {
-                commentId: fullCommentData.id,
-                postId: fullCommentData.media.id,
-                userId: fullCommentData.from.id,
-                username: fullCommentData.from.username,
-                text: fullCommentData.text,
-                accountId: integration.id,
-            },
-        });
-
-        // Execute workflow
-        await workflowExecutor.executeCommentWorkflow(
-            {
-                commentId: fullCommentData.id,
-                postId: fullCommentData.media.id,
-                userId: fullCommentData.from.id,
-                username: fullCommentData.from.username,
-                text: fullCommentData.text,
-                instagramAccountId: integration.instagramId,
-            },
-            integration
-        );
     } catch (error) {
         console.error("Error handling comment webhook:", error);
     }
 }
 
-// Handle message webhook
-async function handleMessageWebhook(messageData: any, integration: any) {
-    try {
-        console.log("Processing message webhook:", messageData);
+async function handleMessageWebhook(integration: any, messageData: any) {
+    const {
+        sender: { id: senderId },
+        recipient: { id: recipientId },
+        timestamp,
+        message
+    } = messageData;
 
-        // Handle DM workflows here if needed
-        // Similar to comment handling but for DMs
-    } catch (error) {
-        console.error("Error handling message webhook:", error);
+    // Skip if message is from the page itself
+    if (senderId === recipientId) return;
+
+    // Save message to database
+    const directMessage = await db.directMessage.create({
+        data: {
+            integrationId: integration.id,
+            messageId: message.mid,
+            threadId: `t_${senderId}`, // Instagram doesn't provide thread ID in webhook
+            senderId,
+            senderUsername: 'Unknown', // Will be updated when fetching user profile
+            text: message.text || '',
+            timestamp: new Date(timestamp)
+        }
+    });
+
+    // Find active workflows for DM triggers
+    const workflows = await db.workflow.findMany({
+        where: {
+            integrationId: integration.id,
+            isActive: true,
+            triggerType: 'DM_RECEIVED'
+        }
+    });
+
+    // Execute each workflow
+    for (const workflow of workflows) {
+        await FlexibleWorkflowExecutor.execute(workflow, {
+            type: 'DM_RECEIVED',
+            data: directMessage
+        });
     }
 }
 

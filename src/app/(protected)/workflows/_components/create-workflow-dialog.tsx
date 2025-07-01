@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { WorkflowTriggerType } from "@prisma/client";
 import { motion, AnimatePresence } from "framer-motion";
+import { safeWorkflowExample } from "@/types/workflow-definition.type";
 
 interface Props {
     open: boolean;
@@ -527,5 +528,5 @@ const getTemplateDefinition = (templateId: string, triggerType: WorkflowTriggerT
         viewport: { x: 0, y: 0, zoom: 1 },
     };
 
-    return basicDefinition;
+    return safeWorkflowExample;
 };

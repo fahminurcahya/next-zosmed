@@ -39,6 +39,13 @@ export const IGUserComment = {
                 onCreateAndConnect={onCreateAndConnect}
                 isDisable
             />
+            <TaskMenuBtn
+                taskType={TaskType.IG_SAFETY_CONFIG}
+                sourceNodeId={sourceNodeId}
+                sourceHandle="Action"
+                onCreateAndConnect={onCreateAndConnect}
+
+            />
         </div>
     ),
     sidebarComponent: FormUserCommentIG,

@@ -26,7 +26,7 @@ import { StatusBadge } from "./status-badge";
 
 // Enhanced Workflow Card Component
 function WorkflowCard({ workflow }: { workflow: Workflow }) {
-    const isActive = workflow.status === WorkflowStatus.PUBLISHED;
+    const isActive = workflow.isActive
 
     // Mock data for demo - you can replace with real data
     const todayExecutions = 24;
@@ -53,16 +53,6 @@ function WorkflowCard({ workflow }: { workflow: Workflow }) {
                                 >
                                     {workflow.name}
                                 </Link>
-
-                                {/* Status Badges */}
-                                {workflow.cron && (
-                                    <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-50 text-xs px-2 py-0.5">
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Event-Driven
-                                    </Badge>
-                                )}
-
-                                <StatusBadge status={workflow.status} />
                             </div>
 
                             {/* Description */}

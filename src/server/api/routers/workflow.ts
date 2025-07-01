@@ -228,7 +228,7 @@ export const workflowRouter = createTRPCRouter({
                 data: {
                     ...(input.name && { name: input.name }),
                     ...(input.description !== undefined && { description: input.description }),
-                    ...(input.definition && { definition: JSON.stringify(input.definition) }),
+                    ...(input.definition && { definition: input.definition }),
                     ...(input.isActive !== undefined && { isActive: input.isActive }),
                 },
             });

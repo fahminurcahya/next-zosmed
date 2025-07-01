@@ -1,12 +1,15 @@
 "use client";
 import TooltipWrapper from "@/components/global/tooltip-wrapper";
 import { Button } from "@/components/ui/button";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import UnpublishBtn from "./UnpublishBtn";
 import SaveBtn from "./SaveBtn";
 import PublishBtn from "./PublishBtn";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import FormSafetyConfiguration from "../content/form-safety-config-ig";
+import SafetyBtn from "./safety-btn";
 
 interface Props {
   title: string;
@@ -41,9 +44,12 @@ export default function Topbar({
           )}
         </div>
       </div>
+
       <div className="flex gap-1 flex-1 justify-end">
         {hideButtons === false && (
           <>
+            <SafetyBtn workflowId={workflowId} />
+
             {isPublished && <UnpublishBtn workflowId={workflowId} />}
             {!isPublished && (
               <>

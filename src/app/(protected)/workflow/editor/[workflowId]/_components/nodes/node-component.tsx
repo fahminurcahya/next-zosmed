@@ -216,6 +216,16 @@ const NodeComponent = memo((props: NodeProps) => {
                     </ConfigurationDisplay>
                 )}
 
+                {nodeData.type === TaskType.IG_SAFETY_CONFIG && nodeData.safetySettings && (
+                    <ConfigurationDisplay title="Safety Settings">
+                        <ConfigItem
+                            label="Mode"
+                            value={nodeData.safetySettings.enabled ? 'ENABLED' : 'UNSAFE'}
+                            icon="🛡️"
+                        />
+                    </ConfigurationDisplay>
+                )}
+
                 {/* Trigger Node Display */}
                 {nodeData.type === TaskType.IG_TRIGGER && <TriggerNode />}
 

@@ -3,6 +3,7 @@ import type { Node } from "@xyflow/react";
 import type { TaskParam, TaskType } from "./task.type";
 
 export interface AppNodeData {
+    safetySettings?: SafetySettings;
     type: TaskType;
     inputs: Record<string, string>;
     [key: string]: any;
@@ -92,5 +93,40 @@ export const nodeMapper: Record<string, string> = {
     Slack: 'slackNode',
     Discord: 'discordNode',
     'Google Drive': 'googleNode',
+}
+
+export interface SafetySettings {
+    enabled: boolean;
+    useRecommendedLimits?: boolean;
+    customLimits?: {
+        commentsPerHour?: number;
+        commentsPerDay?: number;
+        dmsPerHour?: number;
+        dmsPerDay?: number;
+    };
+    delays?: {
+        enabled: boolean;
+        minDelay?: number;
+        maxDelay?: number;
+        betweenCommentAndDm?: number;
+    };
+    contentSafety?: {
+        enabled: boolean;
+        checkBannedPhrases?: boolean;
+        maxMentions?: number;
+        maxHashtags?: number;
+        maxUrls?: number;
+    };
+    activeHours?: {
+        enabled: boolean;
+        startHour?: number;
+        endHour?: number;
+        timezone?: string;
+    };
+    warmupMode?: {
+        enabled: boolean;
+        days?: number;
+        actionsPerDay?: number;
+    };
 }
 

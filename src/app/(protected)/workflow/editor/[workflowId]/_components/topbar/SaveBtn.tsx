@@ -29,7 +29,14 @@ export default function SaveBtn({ workflowId }: { workflowId: string }) {
       variant={"outline"}
       className="flex items-center gap-2"
       onClick={() => {
-        const workflowDefinition = JSON.stringify(toObject());
+        const flowObject = toObject();
+
+        // NEW: Get safety settings from global store
+        const safetySettings = (window as any).__workflowSafetySettings;
+
+        // Include safety settings in workflow definition
+        const workflowDefinition = JSON.stringify(flowObject);
+
         onSave({
           id: workflowId,
           definition: workflowDefinition,

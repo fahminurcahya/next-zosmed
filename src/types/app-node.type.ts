@@ -147,21 +147,46 @@ export interface IGReplyData {
         url: string;
         enabled: boolean;
     }>;
-    // NEW: Optional safety config (backward compatible)
+    // Updated safety config dengan Combined Actions
     safetyConfig?: {
         enabled: boolean;
         mode: 'safe' | 'balanced' | 'aggressive' | 'custom';
-        customLimits?: {
-            maxRepliesPerHour: number;
-            maxRepliesPerDay: number;
-            delayBetweenReplies: [number, number];
+
+        // Combined Actions - single counter untuk semua action types
+        combinedLimits?: {
+            maxActionsPerHour: number;      // Total budget per hour
+            maxActionsPerDay: number;       // Total budget per day
+            delayBetweenActions: [number, number]; // [min, max] in seconds
+            commentToDmDelay: [number, number];    // Extra delay comment->DM
         };
-        contentRules: {
+
+        // Control which action types are enabled
+        actionTypes?: {
             enableCommentReply: boolean;
             enableDMReply: boolean;
+        };
+
+        contentRules?: {
             maxMentions: number;
             maxHashtags: number;
         };
+
+        budgetAllocation?: {
+            preferredDmRatio: number;      // 0.0-1.0 (e.g. 0.6 = 60% DM)
+            adaptiveBudgeting: boolean;    // Auto-adjust based on performance
+        };
+    };
+}
+
+// Helper type untuk workflow execution
+export interface CombinedActionLimits {
+    maxActionsPerHour: number;
+    maxActionsPerDay: number;
+    delayBetweenActions: [number, number];
+    commentToDmDelay: [number, number];
+    actionTypes: {
+        enableCommentReply: boolean;
+        enableDMReply: boolean;
     };
 }
 

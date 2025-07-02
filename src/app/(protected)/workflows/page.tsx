@@ -22,7 +22,8 @@ import {
     PlayCircle, PauseCircle, Copy, Trash2, Edit,
     Instagram, TrendingUp, Activity,
     Shield,
-    AlertTriangle
+    AlertTriangle,
+    Send
 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -39,6 +40,7 @@ import useConfirm from "@/hooks/use-confirm";
 import React from "react";
 import CreateWorkflowDialog from "./_components/create-workflow-dialog";
 import WorkflowEmptyState from "./_components/workflow-empty-state";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function WorkflowsPage() {
     const searchParams = useSearchParams();
@@ -71,6 +73,7 @@ export default function WorkflowsPage() {
 
     // Get stats
     const { data: stats } = api.workflow.getStats.useQuery();
+
 
     // Mutations
     const deleteMutation = api.workflow.delete.useMutation({
@@ -107,6 +110,21 @@ export default function WorkflowsPage() {
     });
 
     const workflows = workflowData?.pages.flatMap((page: any) => page.workflows) || [];
+
+    const safetyStats = workflows.reduce((acc, workflow) => {
+        const safetyInfo = getWorkflowSafetyInfo(workflow);
+        if (safetyInfo) {
+            if (safetyInfo.enabled) {
+                acc.protected++;
+            } else {
+                acc.unprotected++;
+            }
+        }
+        if (workflow.isActive) {
+            acc.active++;
+        }
+        return acc;
+    }, { protected: 0, unprotected: 0, active: 0 });
 
     const [DeleteDialog, confirmDelete] = useConfirm(
         "Delete Workflow",
@@ -155,33 +173,52 @@ export default function WorkflowsPage() {
                         </div>
 
                         {/* Stats */}
-                        {stats && (
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <StatsCard
-                                    icon={<Zap />}
-                                    label="Total Workflows"
-                                    value={stats.total}
-                                    color="blue"
-                                />
-                                <StatsCard
-                                    icon={<PlayCircle />}
-                                    label="Active"
-                                    value={stats.active}
-                                    color="green"
-                                />
-                                <StatsCard
-                                    icon={<Activity />}
-                                    label="Executions (24h)"
-                                    value={stats.recentExecutions}
-                                    color="purple"
-                                />
-                                <StatsCard
-                                    icon={<TrendingUp />}
-                                    label="Success Rate"
-                                    value="98%"
-                                    color="orange"
-                                />
-                            </div>
+                        <div className="grid gap-4 md:grid-cols-4 mb-6">
+                            <Card className="p-4">
+                                <div className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-blue-600" />
+                                    <h3 className="font-medium">Total</h3>
+                                </div>
+                                <p className="text-2xl font-bold mt-2">{stats?.total || 0}</p>
+                                <p className="text-xs text-muted-foreground">Workflows created</p>
+                            </Card>
+
+                            <Card className="p-4">
+                                <div className="flex items-center gap-2">
+                                    <PlayCircle className="h-5 w-5 text-green-600" />
+                                    <h3 className="font-medium">Active</h3>
+                                </div>
+                                <p className="text-2xl font-bold mt-2">{safetyStats.active}</p>
+                                <p className="text-xs text-muted-foreground">Currently running</p>
+                            </Card>
+
+                            <Card className="p-4">
+                                <div className="flex items-center gap-2">
+                                    <Shield className="h-5 w-5 text-green-600" />
+                                    <h3 className="font-medium">Protected</h3>
+                                </div>
+                                <p className="text-2xl font-bold mt-2">{safetyStats.protected}</p>
+                                <p className="text-xs text-muted-foreground">With safety enabled</p>
+                            </Card>
+
+                            <Card className="p-4">
+                                <div className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                                    <h3 className="font-medium">At Risk</h3>
+                                </div>
+                                <p className="text-2xl font-bold mt-2">{safetyStats.unprotected}</p>
+                                <p className="text-xs text-muted-foreground">Without protection</p>
+                            </Card>
+                        </div>
+                        {/* Warning Alert */}
+                        {safetyStats.unprotected > 0 && (
+                            <Alert className="mb-6 border-yellow-200 bg-yellow-50">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>
+                                    You have {safetyStats.unprotected} workflow{safetyStats.unprotected > 1 ? 's' : ''} running without safety protection.
+                                    This increases the risk of Instagram detection and account suspension.
+                                </AlertDescription>
+                            </Alert>
                         )}
                     </motion.div>
 
@@ -338,29 +375,82 @@ const StatsCard = ({ icon, label, value, color }: any) => {
     );
 };
 
-const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) => {
+// Helper function to get safety info from workflow
+const getWorkflowSafetyInfo = (workflow: any) => {
+    try {
+        if (!workflow.definition) return null;
+
+        const definition = JSON.parse(workflow.definition);
+        const replyNode = definition.nodes?.find((n: any) => n.data?.igReplyData);
+
+        if (!replyNode?.data?.igReplyData?.safetyConfig) return null;
+
+        const config = replyNode.data.igReplyData.safetyConfig;
+        return {
+            enabled: config.enabled,
+            mode: config.mode,
+            actionsPerHour: config.combinedLimits?.maxActionsPerHour || 0,
+            actionsPerDay: config.combinedLimits?.maxActionsPerDay || 0,
+            enableComment: config.actionTypes?.enableCommentReply,
+            enableDM: config.actionTypes?.enableDMReply
+        };
+    } catch {
+        return null;
+    }
+};
+
+const WorkflowCard = ({ workflow, onDelete, onDuplicate, onToggleActive }: {
+    workflow: any;
+    onDelete: () => void;
+    onDuplicate: () => void;
+    onToggleActive: () => void;
+}) => {
+    const safetyInfo = getWorkflowSafetyInfo(workflow);
+
+    const getSafetyBadge = () => {
+        if (!safetyInfo) return null;
+
+        if (!safetyInfo.enabled) {
+            return (
+                <Badge variant="destructive" className="text-xs">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    UNPROTECTED
+                </Badge>
+            );
+        }
+
+        const modeColors = {
+            safe: 'success',
+            balanced: 'default',
+            aggressive: 'warning',
+            custom: 'secondary'
+        } as const;
+
+        return (
+            <Badge variant={modeColors[safetyInfo.mode as keyof typeof modeColors] || 'default'} className="text-xs">
+                <Shield className="h-3 w-3 mr-1" />
+                {safetyInfo.mode.toUpperCase()}
+            </Badge>
+        );
+    };
+
     const getTriggerIcon = (type: WorkflowTriggerType) => {
         switch (type) {
-            case 'COMMENT_RECEIVED':
-                return <MessageCircle className="h-4 w-4" />;
-            case 'DM_RECEIVED':
-                return <Instagram className="h-4 w-4" />;
+            case WorkflowTriggerType.COMMENT_RECEIVED:
+                return <MessageCircle className="h-3 w-3" />;
+            default:
+                return <Zap className="h-3 w-3" />;
         }
     };
 
     const getTriggerLabel = (type: WorkflowTriggerType) => {
         switch (type) {
-            case 'COMMENT_RECEIVED':
-                return 'Comment Trigger';
-            case 'DM_RECEIVED':
-                return 'DM Trigger';
+            case WorkflowTriggerType.COMMENT_RECEIVED:
+                return 'Comment';
+            default:
+                return type;
         }
     };
-
-    const definition = JSON.parse(workflow.definition);
-    const safetyMode = !definition.safetySettings?.enabled ? 'unsafe' :
-        definition.safetySettings.useRecommendedLimits ? 'safe' :
-            'custom';
 
     return (
         <Card className="group h-full overflow-hidden border-0 shadow-sm hover:shadow-lg transition-all duration-300">
@@ -369,16 +459,6 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                         <h3 className="font-semibold text-lg line-clamp-1">{workflow.name}</h3>
-                        <Badge variant={
-                            safetyMode === 'safe' ? 'success' :
-                                safetyMode === 'custom' ? 'warning' :
-                                    'destructive'
-                        }>
-                            {safetyMode === 'safe' && <Shield className="h-3 w-3 mr-1" />}
-                            {safetyMode === 'custom' && <Zap className="h-3 w-3 mr-1" />}
-                            {safetyMode === 'unsafe' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                            {safetyMode.toUpperCase()} MODE
-                        </Badge>
                         {workflow.integration && (
                             <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                 <Instagram className="h-3 w-3" />
@@ -426,8 +506,8 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                     </DropdownMenu>
                 </div>
 
-                {/* Status Badge */}
-                <div className="flex items-center gap-2">
+                {/* Status Badges */}
+                <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={workflow.isActive ? "success" : "secondary"}>
                         {workflow.isActive ? 'Active' : 'Inactive'}
                     </Badge>
@@ -435,6 +515,7 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                         {getTriggerIcon(workflow.triggerType)}
                         {getTriggerLabel(workflow.triggerType)}
                     </Badge>
+                    {getSafetyBadge()}
                 </div>
             </div>
 
@@ -444,6 +525,36 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                         {workflow.description}
                     </p>
+                )}
+
+                {/* Combined Actions Info */}
+                {safetyInfo && (
+                    <div className="space-y-3 mb-4">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Action Budget</span>
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                <span className="font-medium">{safetyInfo.actionsPerHour}/hour</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            {safetyInfo.enableComment && (
+                                <Badge variant="outline" className="text-xs">
+                                    <MessageCircle className="h-3 w-3 mr-1" />
+                                    Comment
+                                </Badge>
+                            )}
+                            {safetyInfo.enableDM && (
+                                <Badge variant="outline" className="text-xs">
+                                    <Send className="h-3 w-3 mr-1" />
+                                    DM
+                                </Badge>
+                            )}
+                            {!safetyInfo.enableComment && !safetyInfo.enableDM && (
+                                <span className="text-xs text-red-600">No actions enabled</span>
+                            )}
+                        </div>
+                    </div>
                 )}
 
                 {/* Stats */}
@@ -458,34 +569,18 @@ const WorkflowCard = ({ workflow, onToggleActive, onDuplicate, onDelete }: any) 
                             {workflow.successRate !== null ? `${workflow.successRate}%` : 'N/A'}
                         </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Recent Activity</span>
-                        <span className="font-medium">{workflow.recentExecutions} runs</span>
-                    </div>
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="h-3 w-3" />
-                        {workflow.lastRunAt ? (
-                            <span>Last run {formatDistanceToNow(workflow.lastRunAt, { addSuffix: true })}</span>
-                        ) : (
-                            <span>Never run</span>
-                        )}
-                    </div>
-                    {workflow.lastRunStatus && (
-                        <Badge
-                            variant={
-                                workflow.lastRunStatus === 'SUCCESS' ? 'success' :
-                                    workflow.lastRunStatus === 'FAILED' ? 'destructive' :
-                                        'secondary'
-                            }
-                            className="text-xs"
-                        >
-                            {workflow.lastRunStatus}
-                        </Badge>
-                    )}
+                <div className="pt-4 mt-4 border-t flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                        Updated {formatDistanceToNow(new Date(workflow.updatedAt), { addSuffix: true })}
+                    </span>
+                    <Link href={`/workflow/editor/${workflow.id}`}>
+                        <Button size="sm" variant="ghost">
+                            Edit →
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </Card>

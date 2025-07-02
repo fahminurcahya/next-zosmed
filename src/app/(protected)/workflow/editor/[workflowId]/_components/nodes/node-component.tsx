@@ -1,3 +1,4 @@
+// src/app/(protected)/workflow/editor/[workflowId]/_components/nodes/node-component.tsx
 import { Badge } from "@/components/ui/badge";
 import { TaskRegistry } from "@/lib/workflow/task/registry";
 import type { AppNodeData } from "@/types/app-node.type";
@@ -10,8 +11,7 @@ import { NodeOutput, NodeOutputs } from "./node-outputs";
 import { TaskType } from "@/types/task.type";
 import TriggerNode from "./trigger-node";
 import { cn } from "@/lib/utils";
-
-
+import { Shield, Clock, MessageSquare, Send, AlertTriangle } from "lucide-react";
 
 const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
@@ -102,132 +102,184 @@ const NodeComponent = memo((props: NodeProps) => {
         );
     };
 
+    // Combined Actions Safety Display Component
+    const CombinedActionsSafetyDisplay = ({ safetyConfig }: { safetyConfig: any }) => {
+        if (!safetyConfig) return null;
+
+        const getModeColor = (mode: string) => {
+            switch (mode) {
+                case 'safe': return 'bg-green-100 text-green-700';
+                case 'balanced': return 'bg-blue-100 text-blue-700';
+                case 'aggressive': return 'bg-orange-100 text-orange-700';
+                case 'custom': return 'bg-purple-100 text-purple-700';
+                default: return 'bg-gray-100 text-gray-700';
+            }
+        };
+
+        return (
+            <ConfigurationDisplay title="Combined Actions Safety">
+                <div className="space-y-2">
+                    {/* Safety Status */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Shield className={cn(
+                                "h-4 w-4",
+                                safetyConfig.enabled ? "text-green-600" : "text-gray-400"
+                            )} />
+                            <span className="text-xs font-medium">
+                                {safetyConfig.enabled ? 'Protected' : 'Unprotected'}
+                            </span>
+                        </div>
+                        <Badge className={cn(
+                            "text-xs",
+                            safetyConfig.enabled ? getModeColor(safetyConfig.mode) : "bg-gray-100"
+                        )}>
+                            {safetyConfig.mode?.toUpperCase() || 'OFF'}
+                        </Badge>
+                    </div>
+
+                    {/* Budget Info */}
+                    {safetyConfig.enabled && safetyConfig.combinedLimits && (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3 text-slate-500" />
+                                <span className="text-xs">
+                                    <span className="font-medium">{safetyConfig.combinedLimits.maxActionsPerHour}</span> actions/hour,
+                                    <span className="font-medium ml-1">{safetyConfig.combinedLimits.maxActionsPerDay}</span> /day
+                                </span>
+                            </div>
+
+                            {/* Enabled Actions */}
+                            <div className="flex items-center gap-2">
+                                {safetyConfig.actionTypes?.enableCommentReply && (
+                                    <Badge variant="secondary" className="text-xs">
+                                        <MessageSquare className="h-3 w-3 mr-1" />
+                                        Comment
+                                    </Badge>
+                                )}
+                                {safetyConfig.actionTypes?.enableDMReply && (
+                                    <Badge variant="secondary" className="text-xs">
+                                        <Send className="h-3 w-3 mr-1" />
+                                        DM
+                                    </Badge>
+                                )}
+                                {!safetyConfig.actionTypes?.enableCommentReply && !safetyConfig.actionTypes?.enableDMReply && (
+                                    <Badge variant="destructive" className="text-xs">
+                                        No actions enabled
+                                    </Badge>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* Warning if disabled */}
+                    {!safetyConfig.enabled && (
+                        <div className="flex items-center gap-2 text-yellow-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            <span className="text-xs">Running without limits!</span>
+                        </div>
+                    )}
+                </div>
+            </ConfigurationDisplay>
+        );
+    };
+
     return (
         <NodeInputs>
             {!task.isEntryPoint &&
                 <NodeInput key={props.id} nodeId={props.id} />
             }
             <NodeCard nodeId={props.id} isSelected={!!props.selected}>
-                {DEV_MODE && <Badge>DEV: {props.id}</Badge>}
                 <NodeHeader taskType={nodeData.type} nodeId={props.id} />
 
-                {/* Enhanced Instagram Comment Configuration Display */}
-                {nodeData.type === TaskType.IG_USER_COMMENT && igCommentData && (
-                    <ConfigurationDisplay title="Comment Settings">
+                {/* Display different configurations based on node type */}
+                {/* IG User Comment Configuration */}
+                {igCommentData && (
+                    <ConfigurationDisplay title="Comment Trigger Configuration">
                         {igCommentData.selectedPostId && (
                             <ConfigItem
-                                label="Target Post"
+                                label="Post ID"
                                 value={igCommentData.selectedPostId}
-                                icon="📝"
+                                icon="📱"
                             />
                         )}
-
-                        {hasIncludeKeywords && (
-                            <KeywordList keywords={igCommentData.includeKeywords} type="include" />
+                        {hasIncludeKeywords && igCommentData.includeKeywords.length > 0 && (
+                            <KeywordList
+                                keywords={igCommentData.includeKeywords}
+                                type="include"
+                            />
                         )}
-
-                        {hasExcludeKeywords && (
-                            <KeywordList keywords={igCommentData.excludeKeywords} type="exclude" />
-                        )}
-
-                        {!igCommentData.selectedPostId && !hasIncludeKeywords && !hasExcludeKeywords && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-2">
-                                No configuration set
-                            </div>
+                        {hasExcludeKeywords && igCommentData.excludeKeywords.length > 0 && (
+                            <KeywordList
+                                keywords={igCommentData.excludeKeywords}
+                                type="exclude"
+                            />
                         )}
                     </ConfigurationDisplay>
                 )}
 
-                {/* Enhanced Instagram Comment Configuration Display */}
-                {TaskType.IG_USER_DM && igDMData && (
-                    <ConfigurationDisplay title="Comment Settings">
-                        {hasIncludeKeywords && (
-                            <KeywordList keywords={igDMData.includeKeywords} type="include" />
-                        )}
-
-                        {!igDMData.selectedPostId && !hasIncludeKeywords && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-2">
-                                No configuration set
-                            </div>
-                        )}
-                    </ConfigurationDisplay>
-                )}
-
-
-                {(nodeData.type === TaskType.IG_SEND_MSG || nodeData.type === TaskType.IG_SEND_MSG_FROM_DM) && igReplyData && (
-                    <ConfigurationDisplay title="Reply + Safety Settings">
-                        {/* Safety Status */}
-                        {igReplyData.safetyConfig && (
-                            <ConfigItem
-                                label="Safety Mode"
-                                value={igReplyData.safetyConfig.mode.toUpperCase()}
-                                icon={
-                                    igReplyData.safetyConfig.mode === 'safe' ? '🟢' :
-                                        igReplyData.safetyConfig.mode === 'balanced' ? '🟡' : '🟠'
-                                }
-                            />
-                        )}
-
-                        {/* Rate Limits */}
-                        {igReplyData.safetyConfig?.customLimits && (
-                            <ConfigItem
-                                label="Rate Limit"
-                                value={`${igReplyData.safetyConfig.customLimits.maxRepliesPerHour}/hour`}
-                                icon="⚡"
-                            />
-                        )}
-
-                        {/* Reply Templates */}
-                        {igReplyData.publicReplies?.length > 0 && (
-                            <ConfigItem
-                                label="Comment Replies"
-                                value={`${igReplyData.publicReplies.length} template${igReplyData.publicReplies.length !== 1 ? 's' : ''}`}
-                                icon="💬"
-                            />
-                        )}
-
-                        {/* DM Status */}
-                        {igReplyData.dmMessage && (
-                            <ConfigItem
-                                label="Follow-up DM"
-                                value={igReplyData.safetyConfig?.contentRules.enableDMReply ? 'Enabled' : 'Disabled'}
-                                icon="📩"
-                            />
-                        )}
-
-                        {/* CTA Buttons */}
-                        {igReplyData.buttons?.length > 0 && (
-                            <div className="flex items-center gap-2 text-xs">
-                                <span className="text-slate-500 dark:text-slate-400">🔗</span>
-                                <span className="font-medium text-slate-700 dark:text-slate-300">CTA Buttons:</span>
-                                <div className="flex flex-wrap gap-1 flex-1">
-                                    {igReplyData.buttons.slice(0, 2).map((button: { title: string, url: string, enabled: boolean }, index: number) => (
-                                        <span
-                                            key={index}
-                                            className={`px-1 py-0.5 rounded text-xs ${button.enabled
-                                                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 opacity-50"
-                                                }`}
-                                        >
-                                            {button.title || `Button ${index + 1}`}
-                                        </span>
+                {/* IG Reply Configuration with Combined Actions */}
+                {igReplyData && (
+                    <>
+                        <ConfigurationDisplay title="Reply Configuration">
+                            {/* Comment Reply Templates */}
+                            {igReplyData.publicReplies?.length > 0 && (
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+                                        <MessageSquare className="h-3 w-3" />
+                                        Comment Templates ({igReplyData.publicReplies.length})
+                                    </div>
+                                    {igReplyData.publicReplies.slice(0, 2).map((reply: string, index: number) => (
+                                        <div key={index} className="ml-4 mb-1">
+                                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                #{index + 1}: {reply.length > 50 ? reply.slice(0, 50) + '...' : reply}
+                                            </span>
+                                        </div>
                                     ))}
+                                    {igReplyData.publicReplies.length > 2 && (
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 italic ml-4">
+                                            +{igReplyData.publicReplies.length - 2} more templates
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Safety Warning for Aggressive Mode */}
-                        {igReplyData.safetyConfig?.mode === 'aggressive' && (
-                            <div className="text-xs text-orange-600 dark:text-orange-400 italic text-center py-1 bg-orange-50 dark:bg-orange-900/20 rounded">
-                                ⚠️ High-risk mode active
-                            </div>
-                        )}
+                            {/* DM Message */}
+                            {igReplyData.dmMessage && (
+                                <div>
+                                    <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+                                        <Send className="h-3 w-3" />
+                                        DM Message
+                                    </div>
+                                    <FormattedMessage message={igReplyData.dmMessage} maxLength={80} />
+                                </div>
+                            )}
 
-                        {/* No Configuration State */}
-                        {!igReplyData.publicReplies?.length && !igReplyData.dmMessage && !igReplyData.buttons?.length && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-2">
-                                No configuration set
-                            </div>
+                            {/* Action Buttons */}
+                            {igReplyData.buttons?.filter((b: any) => b.enabled).length > 0 && (
+                                <ConfigItem
+                                    label="CTA Buttons"
+                                    value={`${igReplyData.buttons.filter((b: any) => b.enabled).length} active`}
+                                    icon="🔗"
+                                />
+                            )}
+                        </ConfigurationDisplay>
+
+                        {/* Combined Actions Safety Display */}
+                        {igReplyData.safetyConfig && (
+                            <CombinedActionsSafetyDisplay safetyConfig={igReplyData.safetyConfig} />
+                        )}
+                    </>
+                )}
+
+                {/* IG User DM Configuration */}
+                {igDMData && (
+                    <ConfigurationDisplay title="DM Trigger Configuration">
+                        {igDMData.includeKeywords?.length > 0 && (
+                            <KeywordList
+                                keywords={igDMData.includeKeywords}
+                                type="include"
+                            />
                         )}
                     </ConfigurationDisplay>
                 )}
@@ -247,10 +299,25 @@ const NodeComponent = memo((props: NodeProps) => {
                         )}
                     </NodeOutput>
                 ))}
+
+                {/* Dev Mode Information */}
+                {DEV_MODE && (
+                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs">
+                        <div className="font-semibold text-yellow-800 dark:text-yellow-300">Dev Info:</div>
+                        <div className="text-yellow-700 dark:text-yellow-400">
+                            Node ID: {props.id}
+                            <br />
+                            Type: {nodeData.type}
+                        </div>
+                    </div>
+                )}
+
             </NodeCard>
+
         </NodeInputs>
     );
 });
 
 NodeComponent.displayName = "NodeComponent";
+
 export default NodeComponent;

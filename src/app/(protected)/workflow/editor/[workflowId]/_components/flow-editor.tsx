@@ -1,12 +1,10 @@
 "use client";
-import { TaskRegistry } from "@/lib/workflow/task/registry";
 
 import {
     addEdge,
     Background,
     BackgroundVariant,
     Controls,
-    getOutgoers,
     ReactFlow,
     useEdgesState,
     useNodesState,
@@ -15,19 +13,16 @@ import {
     type Edge,
     type NodeMouseHandler,
     type Node,
-    Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AppNode } from "@/types/app-node.type";
 import { CreateFlowNode } from "@/lib/workflow/create-flow-node";
 import type { TaskType } from "@/types/task.type";
 import type { Workflow } from "@prisma/client";
-import type { Registry } from "@/types/workflow.type";
 import NodeComponent from "./nodes/node-component";
 import DeletableEdge from "./edges/deletable-edge";
 
-// Define these completely outside the component
 const nodeTypes = {
     FlowScrapeNode: NodeComponent,
 };
@@ -120,9 +115,7 @@ function FlowEditor({ workflow, onSelectNode }:
     );
 
     const createAndConnectNode = useCallback(
-        (sourceNodeId: string, sourceHandle: string, taskType: TaskType, position?: { x: number; y: number }) => {
-            // console.log('Creating and connecting node:', { sourceNodeId, sourceHandle, taskType });
-
+        (sourceNodeId: string, taskType: TaskType, position?: { x: number; y: number }) => {
             // Create position near the source node if not provided
             const sourceNode = nodes.find(n => n.id === sourceNodeId);
             const nodePosition = position || {
@@ -136,13 +129,6 @@ function FlowEditor({ workflow, onSelectNode }:
             setNodes((nds) => {
                 const updatedNodes = nds.concat(newNode);
 
-                // Create connection after node is added
-                // Find compatible input handle on the new node
-                const targetTask = TaskRegistry[taskType];
-                const sourceTask = TaskRegistry[sourceNode!.data.type];
-
-                // console.log('Connection details:', { targetTask, sourceTask });
-
                 const connection: Connection = {
                     source: sourceNodeId,
                     sourceHandle: null,  // Required by Connection type
@@ -150,12 +136,9 @@ function FlowEditor({ workflow, onSelectNode }:
                     targetHandle: null,  // Required by Connection type
                 };
 
-                // console.log('Creating connection:', connection);
-
                 setEdges((eds) => {
                     try {
                         const result = addEdge({ ...connection, animated: true }, eds);
-                        // console.log('Edge created successfully');
                         return result;
                     } catch (error) {
                         console.error('Failed to create edge:', error);
@@ -169,55 +152,6 @@ function FlowEditor({ workflow, onSelectNode }:
         },
         [nodes, setNodes, setEdges, updateNodeData]
     );
-
-    // const isValidConnection = useCallback(
-    //     (connection: Edge | Connection) => {
-    //         console.log(connection.source)
-    //         // No self-connections allowed
-    //         if (connection.source === connection.target) {
-    //             return false;
-    //         }
-
-
-    //         // Same taskParam type connection
-    //         const source = nodes.find((node) => node.id === connection.source);
-    //         const target = nodes.find((node) => node.id === connection.target);
-    //         if (!source || !target) {
-    //             console.error("invalid connection: source or target node not found");
-    //             return false;
-    //         }
-
-    //         const sourceTask = TaskRegistry[source.data.type];
-    //         const targetTask = TaskRegistry[target.data.type];
-
-    //         const output = sourceTask.outputs.find(
-    //             (o) => o.name === connection.sourceHandle
-    //         );
-
-    //         const input = targetTask.inputs.find(
-    //             (o) => o.name === connection.targetHandle
-    //         );
-
-    //         if (input?.type !== output?.type) {
-    //             console.error("invalid connection: type mismatch");
-    //             return false;
-    //         }
-
-    //         const hasCycle = (node: AppNode, visited = new Set()) => {
-    //             if (visited.has(node.id)) return false;
-    //             visited.add(node.id);
-
-    //             for (const outgoer of getOutgoers(node, nodes, edges)) {
-    //                 if (outgoer.id === connection.source) return true;
-    //                 if (hasCycle(outgoer, visited)) return true;
-    //             }
-    //         };
-
-    //         const detectedCycle = hasCycle(target);
-    //         return !detectedCycle;
-    //     },
-    //     [nodes, edges]
-    // );
 
     const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
         onSelectNode(node);
@@ -242,6 +176,7 @@ function FlowEditor({ workflow, onSelectNode }:
     return (
         <main className="h-full w-full" >
             <ReactFlow
+                key={workflow.id}
                 nodes={nodesWithConnectionHandler}
                 edges={edges}
                 onEdgesChange={onEdgesChange}
@@ -255,8 +190,6 @@ function FlowEditor({ workflow, onSelectNode }:
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 onConnect={onConnect}
-            // isValidConnection={isValidConnection}
-
             >
                 <Controls position="top-left" fitViewOptions={fitViewOptions} />
                 <Background variant={BackgroundVariant.Dots} gap={12} size={1} />

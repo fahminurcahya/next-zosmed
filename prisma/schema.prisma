@@ -155,25 +155,77 @@ enum INTEGRATION_TYPE {
 }
 
 model DirectMessage {
-  id                  String       @id @default(cuid())
-  integrationId       String
-  integration         Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-  messageId           String       @unique
-  threadId            String
-  senderId            String
-  senderUsername      String
-  text                String       @db.Text
-  timestamp           DateTime
-  isReplied           Boolean      @default(false)
-  repliedAt           DateTime?
-  replyText           String?      @db.Text
-  replyStatus         ReplyStatus?
-  workflowExecutionId String?
-  createdAt           DateTime     @default(now())
+  id            String      @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
+  // Message identifiers
+  messageId String @unique
+  threadId  String
+
+  // Direction of message
+  direction MessageDirection @default(INCOMING) // INCOMING or OUTGOING
+
+  // For INCOMING messages:
+  // - senderId = Instagram user who sent the message
+  // - recipientId = Our Instagram account (integration)
+  // For OUTGOING messages:
+  // - senderId = Our Instagram account (integration)
+  // - recipientId = Instagram user we're sending to
+
+  senderId          String
+  senderUsername    String
+  recipientId       String?
+  recipientUsername String?
+
+  // Message content
+  text        String  @db.Text
+  attachments String? // Array of attachment objects
+
+  // Timestamps
+  timestamp DateTime // Instagram's timestamp
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Reply tracking (for INCOMING messages)
+  isReplied      Boolean   @default(false)
+  repliedAt      DateTime?
+  replyMessageId String? // ID of our reply message
+
+  // For OUTGOING messages
+  deliveryStatus DeliveryStatus? // SENT, DELIVERED, READ, FAILED
+  failureReason  String?
+
+  // Workflow tracking
+  workflowExecutionId  String?
+  triggeredByCommentId String? // If DM was triggered by comment
+
+  // Metadata
+  metadata Json? // Additional data (webhook info, etc)
+
+  @@index([integrationId, direction])
   @@index([integrationId, isReplied])
   @@index([threadId])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([timestamp])
   @@map("direct_message")
+  @@schema("zosmed")
+}
+
+enum MessageDirection {
+  INCOMING // User -> Our Account
+  OUTGOING // Our Account -> User
+
+  @@schema("zosmed")
+}
+
+enum DeliveryStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+
   @@schema("zosmed")
 }
 
@@ -192,6 +244,7 @@ model Comment {
   integration         Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   commentId           String       @unique
   postId              String
+  parentId            String?
   userId              String
   username            String
   text                String       @db.Text
@@ -204,6 +257,7 @@ model Comment {
   workflowExecutionId String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([integrationId, isReplied])
   @@index([postId])
@@ -265,6 +319,8 @@ model WorkflowExecution {
   creditsConsumed Int                     @default(0)
   phases          ExecutionPhase[]
   workflow        Workflow                @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  metadata        String?
+  errorMessage    String?
 
   @@map("workflow_execution")
   @@schema("zosmed")
@@ -374,5 +430,35 @@ model UsageTracking {
   @@unique([userId, integrationId, date])
   @@index([userId, date])
   @@map("usage_tracking")
+  @@schema("zosmed")
+}
+
+model WebhookEvent {
+  id           String    @id @default(cuid())
+  source       String // instagram, facebook, etc
+  status       String // received, processed, failed
+  payload      String
+  headers      String?
+  metadata     String? // processing details
+  errorMessage String?
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+
+  @@index([source, status])
+  @@index([receivedAt])
+  @@schema("zosmed")
+}
+
+model WebhookError {
+  id             String   @id @default(cuid())
+  webhookEventId String
+  integrationId  String
+  field          String // comments, messages, etc
+  error          String
+  payload        Json
+  createdAt      DateTime @default(now())
+
+  @@index([webhookEventId])
+  @@index([integrationId])
   @@schema("zosmed")
 }

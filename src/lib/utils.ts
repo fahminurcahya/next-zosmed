@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { customAlphabet } from "nanoid";
+
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -60,3 +62,18 @@ export const getCronDescription = (cron: string): string => {
   };
   return cronMap[cron] || 'Custom schedule';
 };
+
+
+/**
+ * Generate a unique ID
+ * Uses nanoid for URL-safe unique IDs
+ */
+export function generateId(prefix?: string): string {
+  // Create a custom alphabet without ambiguous characters
+  // This makes IDs more readable and less error-prone
+  const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const nanoid = customAlphabet(alphabet, 12);
+
+  const id = nanoid();
+  return prefix ? `${prefix}_${id}` : id;
+}

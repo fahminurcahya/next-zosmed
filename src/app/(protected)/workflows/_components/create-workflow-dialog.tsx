@@ -491,8 +491,7 @@ const getTemplatesForTrigger = (triggerType: WorkflowTriggerType) => {
 };
 
 const getTemplateDefinition = (templateId: string, triggerType: WorkflowTriggerType) => {
-    // Return a basic workflow definition based on template
-    // This would be expanded with actual template definitions
+
     const basicDefinition = {
         nodes: [
             {

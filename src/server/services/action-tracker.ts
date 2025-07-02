@@ -1,72 +1,221 @@
-import { db } from '@/server/db';
 import { Redis } from '@upstash/redis';
-
-interface DailyStats {
-    comments: number;
-    dms: number;
-    totalActions: number;
-}
+import type { ActionStats, CombinedActionLimits } from '@/types/app-node.type';
 
 export class ActionTracker {
     private redis: Redis;
 
-    constructor() {
-        this.redis = new Redis({
+    constructor(redis?: Redis) {
+        // Allow passing Redis instance or create new one
+        this.redis = redis || new Redis({
             url: process.env.UPSTASH_REDIS_REST_URL!,
             token: process.env.UPSTASH_REDIS_REST_TOKEN!,
         });
     }
 
-    async trackAction(integrationId: string, actionType: 'comment_reply' | 'dm_send') {
-        const today = new Date().toISOString().split('T')[0];
-        const key = `actions:${integrationId}:${today}`;
+    /**
+     * Record a combined action (comment or DM)
+     */
+    async recordCombinedAction(
+        integrationId: string,
+        actionType: 'comment_reply' | 'dm_send',
+        metadata?: Record<string, any>
+    ): Promise<void> {
+        const now = Date.now();
+        const dateKey = new Date().toISOString().split('T')[0];
 
-        // Increment counters in Redis
-        await this.redis.hincrby(key, actionType, 1);
-        await this.redis.hincrby(key, 'total', 1);
+        const keys = {
+            // Combined counters
+            daily: `combined_daily:${integrationId}:${dateKey}`,
+            hourly: `combined_hourly:${integrationId}`,
 
-        // Set expiry to 48 hours
-        await this.redis.expire(key, 48 * 60 * 60);
+            // Metadata
+            lastAction: `last_action:${integrationId}`,
+            recentActions: `recent_actions:${integrationId}`
+        };
 
-        // Also track in database for long-term analytics
-        await db.usageTracking.upsert({
-            where: {
-                userId_integrationId_date: {
-                    userId: await this.getUserIdForIntegration(integrationId),
-                    integrationId,
-                    date: new Date(today + 'T00:00:00Z')
-                }
-            },
-            update: {
-                commentReplied: actionType === 'comment_reply' ? { increment: 1 } : undefined,
-                dmSent: actionType === 'dm_send' ? { increment: 1 } : undefined,
-            },
-            create: {
-                userId: await this.getUserIdForIntegration(integrationId),
-                integrationId,
-                date: new Date(today + 'T00:00:00Z'),
-                commentReplied: actionType === 'comment_reply' ? 1 : 0,
-                dmSent: actionType === 'dm_send' ? 1 : 0,
-                workflowRuns: 0
-            }
+        // Pipeline untuk atomic operations
+        const pipeline = this.redis.pipeline();
+
+        // Daily counters
+        pipeline.hincrby(keys.daily, 'total', 1);
+        pipeline.hincrby(keys.daily, actionType, 1);
+        pipeline.expire(keys.daily, 2 * 24 * 60 * 60); // 2 days
+
+        // Hourly sliding window
+        pipeline.zadd(keys.hourly, {
+            score: now,
+            member: `${actionType}:${now}`
         });
+        pipeline.zremrangebyscore(keys.hourly, 0, now - (60 * 60 * 1000));
+        pipeline.expire(keys.hourly, 2 * 60 * 60); // 2 hours
+
+        // Recent actions untuk burst detection
+        pipeline.zadd(keys.recentActions, {
+            score: now,
+            member: `${now}:${actionType}`
+        });
+        pipeline.expire(keys.recentActions, 2 * 60 * 60);
+
+        // Last action metadata
+        pipeline.hset(keys.lastAction, {
+            timestamp: now.toString(),
+            type: actionType,
+            ...(metadata || {})
+        });
+
+        await pipeline.exec();
     }
 
-    async getDailyStats(integrationId: string): Promise<DailyStats> {
-        const today = new Date().toISOString().split('T')[0];
-        const key = `actions:${integrationId}:${today}`;
+    /**
+     * Get combined stats for hourly and daily
+     */
+    async getCombinedStats(integrationId: string): Promise<ActionStats> {
+        const dateKey = new Date().toISOString().split('T')[0];
+        const now = Date.now();
 
-        const stats = await this.redis.hgetall(key);
+        // Daily stats
+        const dailyKey = `combined_daily:${integrationId}:${dateKey}`;
+        const dailyStats = await this.redis.hgetall(dailyKey) as Record<string, string>;
+
+        // Hourly stats (sliding window)
+        const hourlyKey = `combined_hourly:${integrationId}`;
+        const hourAgo = now - (60 * 60 * 1000);
+
+        // First remove old entries
+        await this.redis.zremrangebyscore(hourlyKey, Number.NEGATIVE_INFINITY, hourAgo);
+
+        // Then get all current entries
+        const hourlyActions = await this.redis.zrange(hourlyKey, 0, -1);
+
+        // Count hourly actions by type
+        let hourlyComments = 0;
+        let hourlyDms = 0;
+
+
+        (hourlyActions as string[]).forEach(action => {
+            if (action.startsWith('comment_reply:')) hourlyComments++;
+            else if (action.startsWith('dm_send:')) hourlyDms++;
+        });
 
         return {
-            comments: parseInt((stats && typeof stats === 'object' && 'comment_reply' in stats && typeof stats.comment_reply === 'string') ? stats.comment_reply : '0'),
-            dms: parseInt((stats && typeof stats === 'object' && 'dm_send' in stats && typeof stats.dm_send === 'string') ? stats.dm_send : '0'),
-            totalActions: parseInt((stats && typeof stats === 'object' && 'total' in stats && typeof stats.total === 'string') ? stats.total : '0')
+            daily: {
+                total: parseInt(dailyStats?.total || '0'),
+                comments: parseInt(dailyStats?.comment_reply || '0'),
+                dms: parseInt(dailyStats?.dm_send || '0')
+            },
+            hourly: {
+                total: hourlyComments + hourlyDms,
+                comments: hourlyComments,
+                dms: hourlyDms
+            }
         };
     }
 
-    async getRecentActionCount(integrationId: string, minutes: number = 60): Promise<number> {
-        // For burst detection, track recent actions in a sorted set
+    /**
+     * Check if action can be performed based on combined limits
+     */
+    async canPerformCombinedAction(
+        integrationId: string,
+        actionType: 'comment_reply' | 'dm_send',
+        limits: CombinedActionLimits
+    ): Promise<{ allowed: boolean; reason?: string }> {
+        // Check if action type is enabled
+        if (actionType === 'comment_reply' && !limits.actionTypes.enableCommentReply) {
+            return { allowed: false, reason: 'Comment replies are disabled' };
+        }
+
+        if (actionType === 'dm_send' && !limits.actionTypes.enableDMReply) {
+            return { allowed: false, reason: 'DM replies are disabled' };
+        }
+
+        // Get current stats
+        const stats = await this.getCombinedStats(integrationId);
+
+        // Check daily limit
+        if (stats.daily.total >= limits.maxActionsPerDay) {
+            return {
+                allowed: false,
+                reason: `Daily action limit reached (${limits.maxActionsPerDay})`
+            };
+        }
+
+        // Check hourly limit
+        if (stats.hourly.total >= limits.maxActionsPerHour) {
+            return {
+                allowed: false,
+                reason: `Hourly action limit reached (${limits.maxActionsPerHour})`
+            };
+        }
+
+        return { allowed: true };
+    }
+
+    /**
+     * Get time until next action is allowed
+     */
+    async getTimeUntilNextAction(
+        integrationId: string,
+        limits: {
+            maxActionsPerHour: number;
+            maxActionsPerDay: number;
+        }
+    ): Promise<{
+        canActNow: boolean;
+        waitTimeMs?: number;
+        reason?: string
+    }> {
+        const stats = await this.getCombinedStats(integrationId);
+        const now = Date.now();
+
+        // Check daily limit
+        if (stats.daily.total >= limits.maxActionsPerDay) {
+            // Calculate time until midnight
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+
+            return {
+                canActNow: false,
+                waitTimeMs: tomorrow.getTime() - now,
+                reason: 'Daily limit reached'
+            };
+        }
+
+        // Check hourly limit
+        if (stats.hourly.total >= limits.maxActionsPerHour) {
+            // Get oldest action in current hour window
+            const hourlyKey = `combined_hourly:${integrationId}`;
+            const hourAgo = now - (60 * 60 * 1000);
+
+            // Get all members with scores
+            const allActions = await this.redis.zrange(hourlyKey, 0, -1, { withScores: true });
+
+            // Find oldest action in the hour window
+            let oldestTimestamp = now;
+            for (let i = 0; i < allActions.length; i += 2) {
+                const score = parseInt(allActions[i + 1] as string);
+                if (score >= hourAgo && score < oldestTimestamp) {
+                    oldestTimestamp = score;
+                }
+            }
+
+            if (oldestTimestamp < now) {
+                const waitTime = (oldestTimestamp + (60 * 60 * 1000)) - now;
+                return {
+                    canActNow: false,
+                    waitTimeMs: Math.max(0, waitTime),
+                    reason: 'Hourly limit reached'
+                };
+            }
+        }
+
+        return { canActNow: true };
+    }
+
+    /**
+     * Get recent actions for burst detection
+     */
+    async getRecentActionCount(integrationId: string, minutes: number = 5): Promise<number> {
         const key = `recent_actions:${integrationId}`;
         const now = Date.now();
         const windowStart = now - (minutes * 60 * 1000);
@@ -77,118 +226,111 @@ export class ActionTracker {
         // Count recent actions
         const count = await this.redis.zcard(key);
 
-        // Add current timestamp
-        await this.redis.zadd(key, { score: now, member: `${now}` });
-        await this.redis.expire(key, 2 * 60 * 60); // 2 hours expiry
-
         return count;
     }
 
-    async canPerformAction(
+    /**
+     * Reset daily stats (untuk testing)
+     */
+    async resetDailyStats(integrationId: string): Promise<void> {
+        const dateKey = new Date().toISOString().split('T')[0];
+        const dailyKey = `combined_daily:${integrationId}:${dateKey}`;
+        await this.redis.del(dailyKey);
+    }
+
+    /**
+     * Reset hourly stats (untuk testing)
+     */
+    async resetHourlyStats(integrationId: string): Promise<void> {
+        const hourlyKey = `combined_hourly:${integrationId}`;
+        await this.redis.del(hourlyKey);
+    }
+
+    /**
+     * Get detailed action history
+     */
+    async getActionHistory(
         integrationId: string,
-        actionType: 'comment_reply' | 'dm_send'
-    ): Promise<{ allowed: boolean; reason?: string }> {
-        const dailyStats = await this.getDailyStats(integrationId);
-        const hourlyCount = await this.getHourlyCount(integrationId, actionType);
+        hours: number = 24
+    ): Promise<Array<{ timestamp: number; type: string }>> {
+        const key = `recent_actions:${integrationId}`;
+        const since = Date.now() - (hours * 60 * 60 * 1000);
 
-        // Check daily limits
-        if (actionType === 'comment_reply' && dailyStats.comments >= 200) {
-            return { allowed: false, reason: 'Daily comment limit reached (200)' };
-        }
+        // Remove old entries first
+        await this.redis.zremrangebyscore(key, Number.NEGATIVE_INFINITY, since);
 
-        if (actionType === 'dm_send' && dailyStats.dms >= 100) {
-            return { allowed: false, reason: 'Daily DM limit reached (100)' };
-        }
 
-        // Check hourly limits
-        if (actionType === 'comment_reply' && hourlyCount >= 25) {
-            return { allowed: false, reason: 'Hourly comment limit reached (25)' };
-        }
+        // Get all actions with scores
+        const actions = await this.redis.zrange(key, 0, -1, { withScores: true });
 
-        if (actionType === 'dm_send' && hourlyCount >= 20) {
-            return { allowed: false, reason: 'Hourly DM limit reached (20)' };
-        }
+        const history: Array<{ timestamp: number; type: string }> = [];
 
-        return { allowed: true };
-    }
+        // Process results (zrange with scores returns [member, score, member, score...])
+        for (let i = 0; i < actions.length; i += 2) {
+            const member = actions[i] as string;
+            const score = parseInt(actions[i + 1] as string);
 
-    private async getHourlyCount(integrationId: string, actionType: string): Promise<number> {
-        const key = `hourly:${integrationId}:${actionType}`;
-        const now = Date.now();
-        const hourAgo = now - (60 * 60 * 1000);
-
-        // Remove old entries
-        await this.redis.zremrangebyscore(key, 0, hourAgo);
-
-        // Get count
-        return await this.redis.zcard(key);
-    }
-
-    private async getUserIdForIntegration(integrationId: string): Promise<string> {
-        const integration = await db.integration.findUnique({
-            where: { id: integrationId },
-            select: { userId: true }
-        });
-
-        if (!integration) {
-            throw new Error('Integration not found');
-        }
-
-        return integration.userId;
-    }
-
-    // Analytics methods
-    async getWeeklyStats(integrationId: string) {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const stats = await db.usageTracking.aggregate({
-            where: {
-                integrationId,
-                date: { gte: sevenDaysAgo }
-            },
-            _sum: {
-                dmSent: true,
-                commentReplied: true,
-                workflowRuns: true
+            // Parse member format: "timestamp:actionType"
+            const parts = member.split(':');
+            if (parts.length >= 2) {
+                history.push({
+                    timestamp: score,
+                    type: parts[1] ?? 'unknown' // atau ''
+                });
             }
-        });
+        }
+
+        return history.sort((a, b) => b.timestamp - a.timestamp);
+    }
+
+    /**
+     * Get action statistics for analytics
+     */
+    async getActionAnalytics(
+        integrationId: string,
+        days: number = 7
+    ): Promise<{
+        dailyBreakdown: Array<{
+            date: string;
+            comments: number;
+            dms: number;
+            total: number;
+        }>;
+        totalComments: number;
+        totalDms: number;
+        avgPerDay: number;
+    }> {
+        const breakdown = [];
+        let totalComments = 0;
+        let totalDms = 0;
+
+        for (let i = 0; i < days; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateKey = date.toISOString().split('T')[0];
+
+
+            const dailyKey = `combined_daily:${integrationId}:${dateKey}`;
+            const stats = await this.redis.hgetall(dailyKey) as Record<string, string>;
+
+            const dayStats = {
+                date: dateKey || '',
+                comments: parseInt(stats?.comment_reply || '0'),
+                dms: parseInt(stats?.dm_send || '0'),
+                total: parseInt(stats?.total || '0')
+            };
+
+            breakdown.push(dayStats);
+            totalComments += dayStats.comments;
+            totalDms += dayStats.dms;
+        }
+
 
         return {
-            totalDMs: stats._sum.dmSent || 0,
-            totalComments: stats._sum.commentReplied || 0,
-            totalWorkflows: stats._sum.workflowRuns || 0
+            dailyBreakdown: breakdown.reverse(), // Oldest to newest
+            totalComments,
+            totalDms,
+            avgPerDay: (totalComments + totalDms) / days
         };
-    }
-
-    async getAccountHealth(integrationId: string) {
-        const dailyStats = await this.getDailyStats(integrationId);
-        const weeklyStats = await this.getWeeklyStats(integrationId);
-
-        // Calculate health score
-        const dailyUsagePercent = {
-            comments: (dailyStats.comments / 200) * 100,
-            dms: (dailyStats.dms / 100) * 100
-        };
-
-        const health = {
-            score: 100 - Math.max(dailyUsagePercent.comments, dailyUsagePercent.dms),
-            status: 'healthy' as 'healthy' | 'warning' | 'critical',
-            recommendations: [] as string[]
-        };
-
-        if (dailyUsagePercent.comments > 80 || dailyUsagePercent.dms > 80) {
-            health.status = 'critical';
-            health.recommendations.push('Reduce activity to avoid restrictions');
-        } else if (dailyUsagePercent.comments > 60 || dailyUsagePercent.dms > 60) {
-            health.status = 'warning';
-            health.recommendations.push('Monitor usage closely');
-        }
-
-        if (weeklyStats.totalDMs > 500) {
-            health.recommendations.push('Weekly DM volume is high, consider spreading activity');
-        }
-
-        return health;
     }
 }

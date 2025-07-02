@@ -190,3 +190,33 @@ export interface CombinedActionLimits {
     };
 }
 
+// Add to src/types/app-node.type.ts
+
+// Stats type untuk tracking
+export interface ActionStats {
+    daily: {
+        total: number;
+        comments: number;
+        dms: number;
+    };
+    hourly: {
+        total: number;
+        comments: number;
+        dms: number;
+    };
+}
+
+// Execution result type
+export interface ExecutionResult {
+    success: boolean;
+    actionsPerformed: {
+        comments: number;
+        dms: number;
+    };
+    errors?: string[];
+    budgetUsed: {
+        hourly: number;
+        daily: number;
+    };
+}
+

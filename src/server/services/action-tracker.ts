@@ -1,5 +1,29 @@
 import { Redis } from '@upstash/redis';
 import type { ActionStats, CombinedActionLimits } from '@/types/app-node.type';
+export interface WorkflowActionLimits {
+    maxActionsPerHour: number;
+    maxActionsPerDay: number;
+    delayBetweenActions: [number, number]; // [min, max] seconds
+    commentToDmDelay: [number, number];    // [min, max] seconds
+}
+
+export interface WorkflowActionTypes {
+    enableCommentReply: boolean;
+    enableDMReply: boolean;
+}
+
+export interface WorkflowActionStats {
+    daily: {
+        total: number;
+        comments: number;
+        dms: number;
+    };
+    hourly: {
+        total: number;
+        comments: number;
+        dms: number;
+    };
+}
 
 export class ActionTracker {
     private redis: Redis;

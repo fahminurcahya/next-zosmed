@@ -5,7 +5,6 @@ export enum TaskType {
     IG_SEND_MSG = "IG_SEND_MSG",
     IG_SEND_WITH_AI = "IG_SEND_WITH_AI",
     IG_SEND_MSG_FROM_DM = "IG_SEND_MSG_FROM_DM",
-    IG_SAFETY_CONFIG = 'IG_SAFETY_CONFIG',
 }
 
 export enum TaskParamType {

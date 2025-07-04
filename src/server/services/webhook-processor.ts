@@ -58,13 +58,6 @@ export class WebhookProcessor {
             return;
         }
 
-        // Update last webhook received time
-        // todo
-        // await db.integration.update({
-        //     where: { id: integration.id },
-        //     data: { lastWebhookAt: new Date() }
-        // });
-
         // Process each change
         for (const change of entry.changes) {
             await this.processChange(integration, change, eventId);
@@ -108,21 +101,5 @@ export class WebhookProcessor {
                 }
             });
         }
-    }
-
-    /**
-     * Get active workflows for a specific trigger type
-     */
-    static async getActiveWorkflows(
-        integrationId: string,
-        triggerType: WorkflowTriggerType
-    ) {
-        return await db.workflow.findMany({
-            where: {
-                integrationId,
-                isActive: true,
-                triggerType
-            }
-        });
     }
 }

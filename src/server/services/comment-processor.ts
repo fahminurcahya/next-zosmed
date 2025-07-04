@@ -1,9 +1,8 @@
 import { db } from "@/server/db";
 import { WorkflowTriggerType } from "@prisma/client";
-import { InstagramService } from "@/server/services/instagram-service";
-import { ActionTracker } from "@/server/services/action-tracker";
 import { Redis } from "@upstash/redis";
-import { CombinedActionsExecutor } from "./combine-actions-executor";
+import { InstagramService } from "./instagram-service";
+import { FlowBasedWorkflowExecutor } from "./flow-base-executor";
 
 interface CommentData {
     id: string;
@@ -62,7 +61,7 @@ export class CommentProcessor {
 
             console.log(`Found ${workflows.length} active workflows for comment trigger`);
 
-            // 5. Execute workflows with Combined Actions
+            // 5. Execute workflows with post validation and combined actions
             for (const workflow of workflows) {
                 await this.executeWorkflow(workflow, comment, integration);
             }
@@ -135,7 +134,7 @@ export class CommentProcessor {
     }
 
     /**
-     * Execute workflow for comment with Combined Actions
+     * Execute workflow for comment with Flow-Based Execution
      */
     private static async executeWorkflow(
         workflow: any,
@@ -143,101 +142,93 @@ export class CommentProcessor {
         integration: any
     ): Promise<void> {
         try {
-            console.log(`🚀 Executing workflow ${workflow.id} for comment ${comment.id}`);
+            console.log(`🚀 Executing flow-based workflow ${workflow.id} for comment ${comment.id}`);
 
-            // Parse workflow definition
-            const definition = JSON.parse(workflow.definition);
+            // Initialize Flow-Based Executor
+            const executor = new FlowBasedWorkflowExecutor();
 
-            // Find comment trigger node
-            const triggerNode = definition.nodes.find(
-                (n: any) => n.data.type === 'IG_USER_COMMENT'
-            );
-
-            if (!triggerNode) {
-                console.log('No comment trigger node found');
-                return;
-            }
-
-            // Check keyword filters
-            const matchesFilters = await this.checkKeywordFilters(
+            // Execute workflow with context
+            const result = await executor.executeWorkflow(workflow, {
                 comment,
-                triggerNode.data.igUserCommentData
-            );
-
-            if (!matchesFilters) {
-                console.log('Comment does not match keyword filters');
-                return;
-            }
-
-            // Find reply node with Combined Actions config
-            const replyNode = definition.nodes.find(
-                (n: any) => n.data.type === 'IG_SEND_MSG'
-            );
-
-            if (!replyNode?.data?.igReplyData) {
-                console.log('No reply configuration found');
-                return;
-            }
-
-            // Execute with Combined Actions
-            const executor = new CombinedActionsExecutor(
-                new ActionTracker(this.redis),
-                integration.id
-            );
-
-            const result = await executor.executeReplyAction(
-                replyNode.data.igReplyData,
-                {
-                    comment,
-                    integration,
-                    workflowId: workflow.id
-                }
-            );
-
-            // Log execution result
-            await db.workflowExecution.create({
-                data: {
-                    workflowId: workflow.id,
-                    userId: workflow.userId,
-                    trigger: JSON.stringify({
-                        type: 'IG_USER_COMMENT',
-                        commentId: comment.id,
-                        username: comment.username
-                    }),
-                    status: result.success ? 'SUCCESS' : 'FAILED',
-                    startedAt: new Date(),
-                    completedAt: new Date(),
-                    definition: workflow.definition,
-                    metadata: JSON.stringify({
-                        actionsPerformed: result.actionsPerformed,
-                        budgetUsed: result.budgetUsed,
-                        errors: result.errors
-                    })
-                }
+                integration
             });
 
-            console.log(`✅ Workflow execution completed:`, result);
+            if (result.success) {
+                console.log(`✅ Flow-based workflow execution completed: ${result.executionId}`);
+            } else {
+                console.error(`❌ Flow-based workflow execution failed: ${result.error}`);
+
+                // Log failed execution
+                await db.workflowExecution.create({
+                    data: {
+                        workflowId: workflow.id,
+                        userId: workflow.userId,
+                        trigger: JSON.stringify({
+                            type: 'IG_USER_COMMENT',
+                            commentId: comment.id,
+                            postId: comment.postId
+                        }),
+                        status: 'FAILED',
+                        startedAt: new Date(),
+                        completedAt: new Date(),
+                        definition: workflow.definition,
+                        errorMessage: result.error
+                    }
+                });
+            }
 
         } catch (error) {
-            console.error(`Workflow execution error:`, error);
-
-            // Log failed execution
-            await db.workflowExecution.create({
-                data: {
-                    workflowId: workflow.id,
-                    userId: workflow.userId,
-                    trigger: JSON.stringify({
-                        type: 'IG_USER_COMMENT',
-                        commentId: comment.id
-                    }),
-                    status: 'FAILED',
-                    startedAt: new Date(),
-                    completedAt: new Date(),
-                    definition: workflow.definition,
-                    errorMessage: error instanceof Error ? error.message : String(error)
-                }
-            });
+            console.error(`Flow-based workflow execution error:`, error);
+            throw error;
         }
+    }
+
+    /**
+     * Validate if comment is on the selected post(s)
+     */
+    private static async validatePostId(
+        comment: any,
+        filterConfig: any
+    ): Promise<boolean> {
+        const selectedPostIds = filterConfig?.selectedPostId;
+
+        // If selectedPostId is not defined or empty array, don't process
+        if (!selectedPostIds || (Array.isArray(selectedPostIds) && selectedPostIds.length === 0)) {
+            console.log('❌ No posts selected in workflow, skipping processing');
+            return false;
+        }
+
+        const commentPostId = comment.postId;
+
+        // Always convert to array format for consistent handling
+        const postIdsArray = Array.isArray(selectedPostIds) ? selectedPostIds : [selectedPostIds];
+
+        console.log(`Validating post: comment post ID = ${commentPostId}, selected post IDs = [${postIdsArray.join(', ')}]`);
+
+        // Check if comment's postId matches any of the selected posts
+        const normalizedCommentPostId = this.normalizePostId(commentPostId);
+        const isMatch = postIdsArray.some(postId =>
+            this.normalizePostId(postId) === normalizedCommentPostId
+        );
+
+        if (!isMatch) {
+            console.log(`❌ Post validation failed: comment on ${commentPostId}, workflow for posts [${postIdsArray.join(', ')}]`);
+        } else {
+            console.log(`✅ Post validation passed: comment matches one of selected posts [${postIdsArray.join(', ')}]`);
+        }
+
+        return isMatch;
+    }
+
+    /**
+     * Normalize post ID for comparison (handle different formats)
+     */
+    private static normalizePostId(postId: string): string {
+        if (!postId) return '';
+
+        // Remove any URL prefixes and get just the ID
+        const normalized = postId.toString().replace(/^https?:\/\/[^\/]+\//, '').split('/')[0];
+        return normalized || '';
     }
 
     /**
@@ -257,8 +248,10 @@ export class CommentProcessor {
                 (keyword: string) => text.includes(keyword.toLowerCase())
             );
             if (!hasIncludeKeyword) {
+                console.log(`❌ Include keyword filter failed: "${comment.text}" doesn't contain any of [${filterConfig.includeKeywords.join(', ')}]`);
                 return false;
             }
+            console.log(`✅ Include keyword filter passed`);
         }
 
         // Check exclude keywords
@@ -267,8 +260,10 @@ export class CommentProcessor {
                 (keyword: string) => text.includes(keyword.toLowerCase())
             );
             if (hasExcludeKeyword) {
+                console.log(`❌ Exclude keyword filter failed: "${comment.text}" contains excluded keyword`);
                 return false;
             }
+            console.log(`✅ Exclude keyword filter passed`);
         }
 
         return true;

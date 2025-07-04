@@ -3,7 +3,6 @@ import crypto from "crypto";
 import { headers } from "next/headers";
 import { db } from "@/server/db";
 import { InstagramService } from "@/server/services/instagram-service";
-import { FlexibleWorkflowExecutor } from "@/server/services/flexible-workflow-executor";
 import { WebhookVerifier } from "@/server/services/webhook-verifier";
 import { WebhookLogger } from "@/server/services/webhook-logger";
 import { WebhookProcessor } from "@/server/services/webhook-processor";
@@ -46,7 +45,6 @@ export async function GET(request: NextRequest) {
 
 // Handle POST request for webhook events
 export async function POST(request: NextRequest) {
-    const startTime = Date.now();
     let webhookEventId: string | null = null;
 
     try {
@@ -65,8 +63,6 @@ export async function POST(request: NextRequest) {
                 );
             }
         }
-
-
 
         // 3. Parse webhook data
         const webhookData = JSON.parse(body);

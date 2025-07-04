@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { ReactFlowProvider, type Edge, type Node } from "@xyflow/react";
 import type { Workflow } from "@prisma/client";
 import { FlowValidationContextProvider } from "@/components/context/flow-validation-context";
-import { WorkflowStatus } from "@/types/workflow.type";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FlowEditor from "./flow-editor";
 import EditorCanvasSidebar from "./editor-canvas-sidebar";

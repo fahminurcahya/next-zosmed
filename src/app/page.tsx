@@ -1141,7 +1141,7 @@ const ZosmedLanding = () => {
             <PlatformsSection />
             <FAQSection />
             <CTASection />
-            {/* <WaitlistForm /> */}
+            <WaitlistForm />
             <Footer />
         </div>
     );

@@ -9,6 +9,7 @@ export default tseslint.config(
   {
     ignores: [".next"],
   },
+  // @ts-ignore - TypeScript ESLint compatibility issue
   ...compat.extends("next/core-web-vitals"),
   {
     files: ["**/*.ts", "**/*.tsx"],
@@ -33,6 +34,7 @@ export default tseslint.config(
         "error",
         { checksVoidReturn: { attributes: false } },
       ],
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {

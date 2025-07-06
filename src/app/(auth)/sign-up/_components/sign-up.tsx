@@ -146,10 +146,7 @@ export default function SignUp() {
                     </form>
                 </Form>
 
-                <div className="my-4 text-center text-sm text-gray-500">Or continue with</div>
-                <div className="flex">
-                    <button className="w-full border py-2 rounded-md hover:bg-gray-50">Google</button>
-                </div>
+
                 <p className="mt-6 text-sm text-center">
                     Already have an account?{' '}
                     <a href="/sign-in" className="text-black font-semibold hover:underline">
@@ -159,7 +156,7 @@ export default function SignUp() {
             </div>
             {/* Right Panel - Hidden on small screens */}
             <div className="hidden md:flex w-1/2 bg-white items-center justify-center">
-                <Image src={"/fulllogo2.png"} alt="zosmed"
+                <Image src={"/new-logo.png"} alt="zosmed"
                     width={350}
                     height={200}
                     className="object-cover"

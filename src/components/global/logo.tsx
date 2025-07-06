@@ -9,7 +9,7 @@ const Logo = () => {
             <Image src="/logo.png" alt="Logo" width={40} height={40} />
             {open && (
                 <span className="text-xl font-semibold">
-                    <span className="text-primary">
+                    <span className="bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
                         Zosmed
                     </span>
                 </span>

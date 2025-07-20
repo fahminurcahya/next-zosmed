@@ -46,16 +46,16 @@ const OnboardingSuccessStep = () => {
         setIsRedirecting(true);
         // Small delay for better UX
         setTimeout(() => {
-            router.push('/dashboard');
+            window.location.href = '/dashboard';
         }, 500);
     };
 
     const handleExploreFeatures = () => {
-        router.push('/workflows');
+        window.location.href = '/workflows';
     };
 
     const handleViewSettings = () => {
-        router.push('/settings');
+        window.location.href = '/profile';
     };
 
     // Setup summary data

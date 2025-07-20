@@ -121,6 +121,55 @@ export function generateLaunchHTML(user: any): string {
   `;
 }
 
+export function generateVerificationHTML(data: { name: string; verificationUrl: string }) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .button { 
+          display: inline-block; 
+          padding: 12px 30px; 
+          background: #10B981; 
+          color: white; 
+          text-decoration: none; 
+          border-radius: 6px; 
+          margin-top: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Verifikasi Email Anda</h1>
+        </div>
+        
+        <p>Halo ${data.name},</p>
+        
+        <p>Terima kasih telah bergabung dengan Zosmed! Untuk mengaktifkan akun Anda, silakan verifikasi email Anda dengan menekan tombol di bawah ini:</p>
+        
+        <center>
+          <a href="${data.verificationUrl}" class="button">
+            Verifikasi Email
+          </a>
+        </center>
+        
+        <p>Jika Anda tidak merasa mendaftar di Zosmed, Anda bisa mengabaikan email ini.</p>
+        
+        <p>Salam hangat,<br>
+        Tim Zosmed</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+
+
 
 function getPlanDisplayName(plan: string): string {
   const planNames: Record<string, string> = {

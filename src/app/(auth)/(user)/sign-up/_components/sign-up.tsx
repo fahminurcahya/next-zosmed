@@ -18,7 +18,7 @@ import { CheckCircle, Loader2 } from "lucide-react";
 export default function SignUp() {
     const router = useRouter();
 
-    const { signup, loading, error, isCreatingSubscription } = useSignupWithSubscription();
+    const { signup, loading, error } = useSignupWithSubscription();
 
 
 
@@ -36,7 +36,7 @@ export default function SignUp() {
         await signup(data);
     }
 
-    const isProcessing = loading || isCreatingSubscription;
+    const isProcessing = loading;
 
 
     return (
@@ -48,18 +48,6 @@ export default function SignUp() {
                     <p className="mb-6 text-sm text-gray-600">Create your account and get started for free</p>
                 </div>
 
-                {/* Processing Status */}
-                {isCreatingSubscription && (
-                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                            <div>
-                                <p className="text-sm font-medium text-blue-900">Setting up your account...</p>
-                                <p className="text-xs text-blue-700">Creating your free subscription</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <Form {...form}>
                     <form
@@ -178,7 +166,6 @@ export default function SignUp() {
                             {isProcessing ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    {isCreatingSubscription ? 'Setting up account...' : 'Creating account...'}
                                 </>
                             ) : (
                                 'Create Free Account'

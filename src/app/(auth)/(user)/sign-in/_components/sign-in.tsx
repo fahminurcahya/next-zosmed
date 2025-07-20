@@ -3,7 +3,6 @@
 import { type SVGProps, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { signinGithub, signinGoogle } from "@/lib/social-login";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,11 @@ export default function SignIn() {
                     router.push("/dashboard");
                 },
                 onError: (ctx) => {
-                    setError(ctx.error.message)
+                    if (ctx.error.status === 403) {
+                        setError("Please verify your email address");
+                    } else {
+                        setError(ctx.error.message)
+                    }
                 },
                 onResponse: () => {
                     setLoading(false);

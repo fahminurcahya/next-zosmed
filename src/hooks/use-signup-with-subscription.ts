@@ -1,9 +1,8 @@
-// hooks/use-signup-with-subscription.ts
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
 import { api } from '@/trpc/react';
+import { toast } from 'sonner';
 
 interface SignupData {
     name: string;
@@ -17,9 +16,6 @@ export const useSignupWithSubscription = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Mutation untuk create default subscription setelah signup
-    const createDefaultSubscriptionMutation = api.user.createDefaultSubscription.useMutation();
-
     const signup = async (data: SignupData) => {
         setLoading(true);
         setError('');
@@ -29,6 +25,7 @@ export const useSignupWithSubscription = () => {
             await new Promise((resolve, reject) => {
                 authClient.signUp.email(data, {
                     onSuccess: (ctx) => {
+                        toast.success("Registration successful! Please check your email to verify your account.")
                         resolve(ctx);
                     },
                     onError: (ctx) => {
@@ -37,11 +34,8 @@ export const useSignupWithSubscription = () => {
                 });
             });
 
-            // Step 2: Create default free subscription
-            await createDefaultSubscriptionMutation.mutateAsync();
-
             // Step 3: Redirect to onboarding
-            router.push('/dashboard');
+            router.push('/sign-in');
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftar';
@@ -55,6 +49,5 @@ export const useSignupWithSubscription = () => {
         signup,
         loading,
         error,
-        isCreatingSubscription: createDefaultSubscriptionMutation.isPending
     };
 };

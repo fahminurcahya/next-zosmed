@@ -12,24 +12,92 @@ datasource db {
   schemas  = ["zosmed"]
 }
 
+// Tambahkan model ini ke schema.prisma Anda
+
+model Waitinglist {
+  id             String            @id @default(cuid())
+  email          String            @unique
+  name           String
+  phone          String?
+  referralSource String? // dari mana tau (IG, teman, dll)
+  interestedPlan SUBSCRIPTION_PLAN @default(FREE)
+  isNotified     Boolean           @default(false)
+  notifiedAt     DateTime?
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json? // additional info
+  discountCode   DiscountCode?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([email])
+  @@index([isNotified])
+  @@map("waiting_list")
+  @@schema("zosmed")
+}
+
 model User {
-  id            String          @id
-  name          String
-  email         String
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
-  subscription  Subscription?
-  integration   Integration[]
-  notification  Notification[]
-  workflows     Workflow[]
-  UsageTracking UsageTracking[]
+  id                    String            @id
+  name                  String
+  email                 String
+  emailVerified         Boolean
+  image                 String?
+  role                  String            @default("customer")
+  hasOnboarding         Boolean           @default(false)
+  businessName          String?
+  businessCategory      BusinessCategory?
+  businessSize          BusinessSize?
+  location              String?
+  goals                 String?
+  onboardingStep        OnboardingStep    @default(BUSINESS_INFO)
+  onboardingCompletedAt DateTime?
+  agreements            Boolean           @default(false)
+  createdAt             DateTime
+  updatedAt             DateTime
+  sessions              Session[]
+  accounts              Account[]
+  subscription          Subscription?
+  integration           Integration[]
+  notification          Notification[]
+  workflows             Workflow[]
+  usageTracking         UsageTracking[]
+  discountUsage         DiscountUsage[]
+  payment               Payment[]
 
   @@unique([email])
   @@map("user")
+  @@schema("zosmed")
+}
+
+enum BusinessCategory {
+  FB // Food & Beverage
+  FASHION // Fashion & Apparel
+  EDUCATION // Education & Training
+  HEALTH // Health & Wellness
+  TECHNOLOGY // Technology & Digital
+  RETAIL // Retail & E-commerce
+  OTHER // Other
+
+  @@map("business_categories")
+  @@schema("zosmed")
+}
+
+enum BusinessSize {
+  SOLO // Solo/Personal (1 person)
+  SMALL // Small Business (2-10 employees)
+  MEDIUM // Medium Business (11-50 employees)
+  LARGE // Large Enterprise (50+ employees)
+
+  @@map("business_sizes")
+  @@schema("zosmed")
+}
+
+enum OnboardingStep {
+  BUSINESS_INFO // Step 1: Business information
+  INSTAGRAM_CONNECTION // Step 2: Instagram connection
+  COMPLETED // Onboarding completed
+
+  @@map("onboarding_steps")
   @@schema("zosmed")
 }
 
@@ -82,24 +150,32 @@ model Verification {
 }
 
 model Subscription {
-  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  User                User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId              String?            @unique
-  createdAt           DateTime           @default(now())
-  plan                SUBSCRIPTION_PLAN  @default(FREE)
-  updatedAt           DateTime           @default(now())
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user           User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String?           @unique
+  createdAt      DateTime          @default(now())
+  plan           SUBSCRIPTION_PLAN @default(FREE)
+  updatedAt      DateTime          @default(now())
   // Limits & Usage
-  maxAccounts         Int                @default(1)
-  maxDMPerMonth       Int                @default(100)
-  currentDMCount      Int                @default(0)
-  dmResetDate         DateTime           @default(now())
+  maxAccounts    Int               @default(1)
+  maxDMPerMonth  Int               @default(100)
+  currentDMCount Int               @default(0)
+  dmResetDate    DateTime          @default(now())
+
   // AI Features
   hasAIReply          Boolean            @default(false)
   hasAISalesPredictor Boolean            @default(false)
+  maxAIReplyPerMonth  Int                @default(100)
   // Billing
   status              SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart  DateTime?
   currentPeriodEnd    DateTime?
   cancelAtPeriodEnd   Boolean            @default(false)
+
+  // Link to pricing plan
+  pricingPlan   PricingPlan? @relation(fields: [pricingPlanId], references: [id])
+  pricingPlanId String?
+  customPlan    Json? // For custom/legacy plans
 
   @@map("subscription")
   @@schema("zosmed")
@@ -140,7 +216,7 @@ model Integration {
   messages        DirectMessage[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  UsageTracking   UsageTracking[]
+  usageTracking   UsageTracking[]
 
   @@unique([userId, accountId])
   @@index([userId])
@@ -446,6 +522,7 @@ model WebhookEvent {
 
   @@index([source, status])
   @@index([receivedAt])
+  @@map("webhook_event")
   @@schema("zosmed")
 }
 
@@ -460,5 +537,131 @@ model WebhookError {
 
   @@index([webhookEventId])
   @@index([integrationId])
+  @@map("webhook_error")
+  @@schema("zosmed")
+}
+
+model DiscountCode {
+  id                String          @id @default(cuid())
+  code              String          @unique
+  type              DiscountType    @default(PERCENTAGE)
+  value             Float // 50 for 50% or 50000 for Rp 50k
+  description       String?
+  validFrom         DateTime        @default(now())
+  validUntil        DateTime?
+  maxUses           Int? // null = unlimited
+  currentUses       Int             @default(0)
+  minPurchaseAmount Float? // Minimum order amount
+  applicablePlans   String[] // ["STARTER", "PRO"] or empty for all
+  isActive          Boolean         @default(true)
+  waitinglistId     String?         @unique
+  waitinglist       Waitinglist?    @relation(fields: [waitinglistId], references: [id])
+  usages            DiscountUsage[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([code, isActive])
+  @@map("discount_code")
+  @@schema("zosmed")
+}
+
+enum DiscountType {
+  PERCENTAGE // 50% off
+  FIXED // Rp 50k off
+
+  @@schema("zosmed")
+}
+
+model DiscountUsage {
+  id             String       @id @default(cuid())
+  discountId     String
+  discount       DiscountCode @relation(fields: [discountId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  appliedAt      DateTime     @default(now())
+  orderAmount    Float
+  discountAmount Float
+  subscriptionId String?
+
+  @@unique([discountId, userId]) // One discount per user
+  @@map("discount_usage")
+  @@schema("zosmed")
+}
+
+model PricingPlan {
+  id                 String         @id @default(cuid())
+  name               String         @unique // FREE, STARTER, PRO
+  displayName        String // "Free", "Starter", "Pro"
+  description        String?
+  price              Float          @default(0)
+  currency           String         @default("IDR")
+  period             PricingPeriod  @default(MONTHLY)
+  color              String // "from-blue-500 to-cyan-500"
+  bgColor            String // "bg-blue-50"
+  borderColor        String // "border-blue-200"
+  popular            Boolean        @default(false)
+  badge              String? // "BEST VALUE", "RECOMMENDED"
+  maxAccounts        Int            @default(1)
+  maxDMPerMonth      Int            @default(100)
+  maxAIReplyPerMonth Int            @default(0)
+  features           Json // Array of feature objects
+  isActive           Boolean        @default(true)
+  sortOrder          Int            @default(0)
+  subscriptions      Subscription[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  payment   Payment[]
+
+  @@index([isActive, sortOrder])
+  @@map("pricing_plan")
+  @@schema("zosmed")
+}
+
+enum PricingPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  LIFETIME
+
+  @@schema("zosmed")
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  planId            String?
+  plan              PricingPlan?  @relation(fields: [planId], references: [id])
+  externalId        String        @unique
+  xenditInvoiceId   String?       @unique
+  xenditInvoiceUrl  String?
+  xenditRecurringId String?
+  amount            Float
+  currency          String        @default("IDR")
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     String?
+  paymentChannel    String?
+  discountCode      String?
+  discountAmount    Float?
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+  expiredAt         DateTime?
+  metadata          Json?
+
+  @@index([userId, status])
+  @@index([externalId])
+  @@map("payment")
+  @@schema("zosmed")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
+  REFUNDED
+  ABANDONED
+
   @@schema("zosmed")
 }

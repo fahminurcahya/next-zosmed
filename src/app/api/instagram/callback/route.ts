@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to callback page with params
-    const callbackUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/integrations/instagram/callback`, request.url);
+    const callbackUrl = new URL(`${process.env.NEXT_PUBLIC_APP_URL}/instagram/callback`, request.url);
     callbackUrl.searchParams.set("code", code);
     callbackUrl.searchParams.set("state", state);
 

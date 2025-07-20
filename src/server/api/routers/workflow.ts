@@ -4,7 +4,6 @@ import type { AppNode } from "@/types/app-node.type";
 import type { Edge } from "@xyflow/react";
 import { CreateFlowNode } from "@/lib/workflow/create-flow-node";
 import { TaskType } from "@/types/task.type";
-import { WorkflowStatus } from "@/types/workflow.type";
 import { z } from "zod";
 import { FlowToExecutionPlan } from "@/lib/workflow/execution-plan";
 import { CalculateWorkflowCost } from "@/lib/workflow/helpers";

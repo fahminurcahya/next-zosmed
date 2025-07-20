@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence, useInView } from "framer-motion";
-import { SiWhatsapp, SiTelegram } from "react-icons/si";
 import { AdditionalFeatures, Benefits, BetaBenefits, Faqs, LegalLinks, MainFeatures, Plans, Platforms, Problems, ProductLinks, Solutions, SupportLinks } from '@/data/metadata';
+import { useRouter } from 'next/navigation';
 
 
 
@@ -80,6 +80,13 @@ const Header = () => {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+    const router = useRouter();
+
+
+
+    const handleJoinWaitlist = () => {
+        router.push('/waiting-list');
+    };
 
     return (
         <motion.header
@@ -124,10 +131,10 @@ const Header = () => {
                         >FAQ</motion.a>
                         <motion.div
                             className={`px-6 py-2 rounded-lg font-semibold transition-all ${isScrolled ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white' : 'bg-white text-blue-700'}`}
+                            onClick={handleJoinWaitlist}
                         >
                             <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                                <span>Coming Soon</span>
+                                <span>Join</span>
                             </div>
                         </motion.div>
                     </nav>
@@ -142,6 +149,11 @@ const HeroSection = () => {
     const scrollY = useParallax();
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true, amount: 0.3 });
+    const router = useRouter();
+
+    const handleJoinWaitlist = () => {
+        router.push('/waiting-list');
+    };
 
     return (
         <div className="relative min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-500 overflow-hidden">
@@ -222,14 +234,16 @@ const HeroSection = () => {
                         animate={isInView ? { opacity: 1, y: 0 } : {}}
                         transition={{ duration: 0.6, delay: 0.8 }}
                     >
-                        <motion.div
-                            className="bg-white/20 backdrop-blur-sm border border-white/30 text-white px-8 py-4 rounded-xl font-semibold text-lg"
+                        <motion.button
+                            onClick={handleJoinWaitlist}
+                            className="bg-white/20 backdrop-blur-sm border border-white/30 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/30 transition-all hover:scale-105 group"
+                            whileHover={{ scale: 1.05 }}
                         >
                             <div className="flex items-center justify-center space-x-2">
-                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                                <span>Coming Soon - Join Waiting List</span>
+                                <span>Join Waiting List</span>
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </div>
-                        </motion.div>
+                        </motion.button>
                     </motion.div>
 
                     <motion.div
@@ -699,6 +713,11 @@ const FAQSection = () => {
 
 // CTA Section
 const CTASection = () => {
+    const router = useRouter();
+
+    const handleJoinWaitlist = () => {
+        router.push('/waiting-list');
+    };
 
     return (
         <div className="py-20 bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-500 relative overflow-hidden">
@@ -765,15 +784,16 @@ const CTASection = () => {
 
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <motion.div
-                            className="bg-white/20 backdrop-blur-sm border border-white/30 text-white px-8 py-4 rounded-xl font-bold text-lg"
+                        <motion.button
+                            onClick={handleJoinWaitlist}
+                            className="bg-white/20 backdrop-blur-sm border border-white/30 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/30 transition-all hover:scale-105 group"
+                            whileHover={{ scale: 1.05 }}
                         >
                             <div className="flex items-center justify-center space-x-2">
-                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                                <span>Coming Soon - Join Waiting List</span>
-                                <Sparkles className="w-5 h-5" />
+                                <span>Join Waiting List</span>
+                                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                             </div>
-                        </motion.div>
+                        </motion.button>
                     </div>
 
                     {/* Trust Indicators */}
@@ -789,205 +809,6 @@ const CTASection = () => {
                         </div>
                     </motion.div>
                 </motion.div>
-            </div>
-        </div>
-    );
-};
-
-// Waitlist Form
-const WaitlistForm = () => {
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        businessType: '',
-        monthlyBudget: ''
-    });
-    const [submitted, setSubmitted] = useState(false);
-
-    const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSubmit = () => {
-        if (formData.name && formData.email) {
-            setSubmitted(true);
-            setTimeout(() => setSubmitted(false), 5000);
-        }
-    };
-
-
-
-    return (
-        <div id="waitinglist" className="py-20 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 relative overflow-hidden">
-            {/* Background */}
-            <div className="absolute inset-0 opacity-10">
-                <motion.div
-                    className="absolute top-20 left-20 w-64 h-64 bg-cyan-400 rounded-full blur-3xl animate-pulse"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    whileInView={{ scale: 1, opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1 }}
-                ></motion.div>
-                <motion.div
-                    className="absolute bottom-20 right-20 w-80 h-80 bg-blue-400 rounded-full blur-3xl animate-pulse"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    whileInView={{ scale: 1, opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1, delay: 0.2 }}
-                ></motion.div>
-            </div>
-
-            <div className="container mx-auto px-6 relative z-10">
-                <div className="max-w-6xl mx-auto">
-                    <motion.div
-                        className="text-center mb-16"
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7 }}
-                    >
-                        <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-4 py-2 rounded-full text-sm font-bold mb-6">
-                            🎉 EXCLUSIVE BETA PROGRAM
-                        </div>
-                        <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                            Join Waiting List Eksklusif!
-                        </h2>
-                        <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-                            Dapatkan akses pertama ke Zosmed dengan benefit eksklusif yang tidak akan tersedia lagi setelah launch
-                        </p>
-                    </motion.div>
-
-                    <div className="grid lg:grid-cols-2 gap-12 items-center">
-                        {/* Beta Benefits */}
-                        <motion.div
-                            initial={{ opacity: 0, x: -30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.7 }}
-                        >
-                            <h3 className="text-2xl font-bold text-white mb-8">Benefit Eksklusif</h3>
-                            <div className="space-y-6">
-                                {BetaBenefits.map((benefit, index) => (
-                                    <motion.div
-                                        key={index}
-                                        className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{ duration: 0.5, delay: 0.1 * index }}
-                                    >
-                                        <div className="flex items-start space-x-4">
-                                            <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black p-2 rounded-xl">
-                                                {benefit.icon}
-                                            </div>
-                                            <div>
-                                                <h4 className="text-lg font-semibold text-white mb-2">{benefit.title}</h4>
-                                                <p className="text-blue-100">{benefit.desc}</p>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </motion.div>
-
-                        {/* Form */}
-                        <motion.div
-                            initial={{ opacity: 0, x: 30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.7 }}
-                        >
-                            {!submitted ? (
-                                <motion.div
-                                    className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-8"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.7 }}
-                                >
-                                    <h3 className="text-2xl font-bold text-white mb-6 text-center">Daftar Eksklusif</h3>
-
-                                    <div className="space-y-4">
-                                        <div className="grid md:grid-cols-2 gap-4">
-                                            <input
-                                                type="text"
-                                                placeholder="Nama Lengkap *"
-                                                value={formData.name}
-                                                onChange={(e) => handleInputChange('name', e.target.value)}
-                                                className="w-full px-6 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                            />
-                                            <input
-                                                type="email"
-                                                placeholder="Email Address *"
-                                                value={formData.email}
-                                                onChange={(e) => handleInputChange('email', e.target.value)}
-                                                className="w-full px-6 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                            />
-                                        </div>
-
-                                        <input
-                                            type="tel"
-                                            placeholder="Nomor WhatsApp (opsional)"
-                                            value={formData.phone}
-                                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                                            className="w-full px-6 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                        />
-
-                                        <select
-                                            value={formData.businessType}
-                                            onChange={(e) => handleInputChange('businessType', e.target.value)}
-                                            className="w-full px-6 py-4 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                        >
-                                            <option value="" className="text-gray-800">Pilih Jenis Bisnis</option>
-                                            <option value="fashion" className="text-gray-800">Fashion & Lifestyle</option>
-                                            <option value="food" className="text-gray-800">Food & Beverage</option>
-                                            <option value="beauty" className="text-gray-800">Beauty & Skincare</option>
-                                            <option value="services" className="text-gray-800">Jasa & Konsultasi</option>
-                                            <option value="digital" className="text-gray-800">Digital Products</option>
-                                            <option value="other" className="text-gray-800">Lainnya</option>
-                                        </select>
-
-                                        <motion.button
-                                            onClick={handleSubmit}
-                                            className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-8 py-4 rounded-xl font-bold text-lg hover:from-yellow-500 hover:to-orange-500 transition-all hover:scale-105 group"
-                                            whileHover={{ scale: 1.05 }}
-
-                                        >
-                                            🚀 Daftar Waiting List Sekarang
-                                            <Trophy className="w-5 h-5 ml-2 inline group-hover:rotate-12 transition-transform" />
-                                        </motion.button>
-                                    </div>
-
-                                    <p className="text-blue-200 text-sm text-center mt-4">
-                                        * Slot terbatas hanya 100 beta tester pertama
-                                    </p>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8 rounded-3xl text-center"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.6 }}
-                                >
-                                    <CheckCircle className="w-16 h-16 mx-auto mb-4" />
-                                    <h3 className="text-2xl font-bold mb-2">🎉 Selamat! Anda Terdaftar</h3>
-                                    <p className="text-lg mb-4">
-                                        Terima kasih telah mendaftar sebagai beta tester Zosmed!
-                                    </p>
-                                    <div className="bg-white/20 rounded-2xl p-4 mb-4">
-                                        <h4 className="font-semibold mb-2">Langkah Selanjutnya:</h4>
-                                        <ul className="text-sm space-y-1">
-                                            <li>✅ Tim kami akan menghubungi Anda dalam 24 jam</li>
-                                            <li>✅ Personal onboarding session akan dijadwalkan</li>
-                                            <li>✅ Akses beta akan diberikan setelah setup</li>
-                                        </ul>
-                                    </div>
-                                    <p className="text-sm">Cek email Anda untuk informasi lebih lanjut!</p>
-                                </motion.div>
-                            )}
-                        </motion.div>
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -1141,7 +962,6 @@ const ZosmedLanding = () => {
             <PlatformsSection />
             <FAQSection />
             <CTASection />
-            <WaitlistForm />
             <Footer />
         </div>
     );

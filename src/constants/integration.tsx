@@ -15,3 +15,5 @@ export const INTEGRATION_CARDS: Props[] = [
         strategy: "INSTAGRAM" as const,
     }
 ];
+
+export const FEE = 5000;

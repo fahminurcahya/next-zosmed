@@ -15,13 +15,11 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar"
 
-import { Bot, CreditCard, LayoutDashboard, MenuIcon, Presentation, Shield } from "lucide-react"
+import { BarChart3, Bot, CreditCard, Hourglass, LayoutDashboard, LifeBuoy, Mail, MailCheck, MenuIcon, Percent, Presentation, Settings, Shield, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { usePathname } from "next/navigation"
+import { redirect, usePathname } from "next/navigation"
 import Logo from "./logo"
 import Link from "next/link"
-import { UserDropdownMenu } from "./user-dropdown-menu"
-// import { UserDropdownMenu } from "./user-dropdown-menu"
 
 const items = [
     {
@@ -40,25 +38,67 @@ const items = [
         icon: Shield,
     },
     {
+        title: "Analitycs",
+        url: "/analitycs",
+        icon: BarChart3,
+    },
+    {
+        title: "Lead & CRM",
+        url: "/lead-crm",
+        icon: Users,
+    },
+    {
         title: "Billing",
         url: "/billing",
         icon: CreditCard,
     },
+    {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
+    },
+    {
+        title: "Help Center",
+        url: "/help-center",
+        icon: LifeBuoy,
+    },
 ]
 
+const admin_items = [
+    {
+        title: "Email Queue",
+        url: "/admin/email-queue",
+        icon: MailCheck,
+    },
+    {
+        title: "Waiting List",
+        url: "/admin/waiting-list",
+        icon: Hourglass,
+    },
+    {
+        title: "Plans",
+        url: "/admin/plans",
+        icon: CreditCard,
+    },
+    {
+        title: "Discounts",
+        url: "/admin/discounts",
+        icon: Percent,
+    },
+];
+
+
 type UserProps = {
-    id: string;
-    email: string;
-    emailVerified: boolean;
-    name: string;
-    createdAt: Date;
-    updatedAt: Date;
-    image?: string | undefined | null;
+    role: string;
 };
 
-export function AppSidebar() {
+export function AppSidebar({ role }: UserProps) {
     const pathname = usePathname()
     const { open } = useSidebar()
+
+    if (pathname === "/onboarding") {
+        return redirect("/dashboard")
+    }
 
     return (
         <Sidebar collapsible="icon" variant="floating">
@@ -66,25 +106,48 @@ export function AppSidebar() {
                 <Logo />
             </SidebarHeader>
             <SidebarContent className="">
-                <SidebarGroup>
-                    <SidebarGroupLabel>Application</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {items.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild>
-                                        <Link href={item.url} className={cn({
-                                            'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 !text-white': pathname === item.url,
-                                        })}>
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                {(role != "admin") &&
+                    <SidebarGroup>
+                        <SidebarGroupLabel>Application</SidebarGroupLabel>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                {items.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton asChild>
+                                            <Link href={item.url} className={cn({
+                                                'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 !text-white': pathname === item.url,
+                                            })}>
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                }
+                {(role == "admin") &&
+                    <SidebarGroup>
+                        <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                {admin_items.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton asChild>
+                                            <Link href={item.url} className={cn({
+                                                'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 !text-white': pathname === item.url,
+                                            })}>
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                }
                 {!open && (
                     <>
                         <SidebarSeparator />

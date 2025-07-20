@@ -6,9 +6,14 @@ import { userRouter } from "./routers/user";
 import { integrationRouter } from "./routers/integration";
 import { instagramConnectRouter } from "./routers/instagram-connect";
 import { subscriptionRouter } from "./routers/subscription";
-import WorkflowExecutionList from "@/app/(protected)/workflows/_components/workflow-execution-list";
 import { workflowExecutionRouter } from "./routers/workflow-execution";
-import { paymentRouter } from "./routers/payment";
+import { waitinglistRouter } from "./routers/waiting-list";
+import { emailQueueRouter } from "./routers/email-queue";
+import { discountRouter } from "./routers/discount";
+import { plansRouter } from "./routers/plans";
+import { billingRouter } from "./routers/billing";
+import { planAdminRouter } from "./routers/plan-admin";
+import { onboardingRouter } from "./routers/onboarding";
 
 /**
  * This is the primary router for your server.
@@ -24,7 +29,13 @@ export const appRouter = createTRPCRouter({
   instagramConnect: instagramConnectRouter,
   subscription: subscriptionRouter,
   workflowExecution: workflowExecutionRouter,
-  payment: paymentRouter
+  waitingList: waitinglistRouter,
+  emailQueue: emailQueueRouter,
+  discount: discountRouter,
+  planAdmin: planAdminRouter,
+  plans: plansRouter,
+  billing: billingRouter,
+  onboarding: onboardingRouter
 });
 
 // export type definition of API

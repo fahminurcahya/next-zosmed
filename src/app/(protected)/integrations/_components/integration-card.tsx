@@ -30,6 +30,10 @@ type Props = {
 const IntegrationCard = ({ description, icon, strategy, title, canAddMore = true, subscription }: Props) => {
     const utils = api.useUtils();
     const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState<string>('');
+
 
     const [ConfirmDialog, confirm] = useConfirm(
         "Connect Instagram Account",
@@ -43,7 +47,7 @@ const IntegrationCard = ({ description, icon, strategy, title, canAddMore = true
     );
 
     // Queries
-    const { data: accountsData, isPending } = api.instagramConnect.getConnectedAccounts.useQuery();
+    const { data: accountsData, isPending, refetch: refetchAccounts } = api.instagramConnect.getConnectedAccounts.useQuery();
     const { data: health } = api.instagramConnect.getAccountHealth.useQuery(
         { accountId: selectedAccount! },
         { enabled: !!selectedAccount }
@@ -52,7 +56,23 @@ const IntegrationCard = ({ description, icon, strategy, title, canAddMore = true
     // Mutations
     const connectMutation = api.instagramConnect.getConnectUrl.useMutation({
         onSuccess: (data) => {
-            window.location.href = data.url;
+            const popup = window.open(
+                data.url,
+                'instagram-auth',
+                'width=600,height=700,scrollbars=yes,resizable=yes'
+            );
+
+            // Monitor popup closure
+            const checkClosed = setInterval(() => {
+                if (popup?.closed) {
+                    clearInterval(checkClosed);
+                    setIsConnecting(false);
+                    // Refetch accounts to check if connection was successful
+                    setTimeout(() => {
+                        refetchAccounts();
+                    }, 1000);
+                }
+            }, 1000);
         },
         onError: (error) => {
             toast.error(error.message || "Failed to connect Instagram");

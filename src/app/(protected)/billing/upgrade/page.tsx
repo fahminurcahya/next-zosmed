@@ -189,7 +189,7 @@ export default function UpgradePlanPage() {
     }
 
     return (
-        <div className="container max-w-7xl mx-2 py-8">
+        <div className="container  mx-auto p-6 space-y-6">
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Upgrade Your Plan</h1>

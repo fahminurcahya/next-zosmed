@@ -20,8 +20,8 @@ const Page = () => {
     const canAddMore = totalConnectedAccounts < maxAccounts;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/20">
-            <div className="container max-w-6xl py-8">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/20 p-6 space-y-6">
+            <div className="container max-w-6xl">
                 {/* Hero Section */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

@@ -143,7 +143,7 @@ export default function DiscountManagement() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="p-6 space-y-6">
             {/* Stats Cards */}
             <DiscountUsageStats
                 discounts={discountsData}

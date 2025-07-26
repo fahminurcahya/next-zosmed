@@ -19,16 +19,16 @@ model Waitinglist {
   email          String            @unique
   name           String
   phone          String?
-  referralSource String? // dari mana tau (IG, teman, dll)
-  interestedPlan SUBSCRIPTION_PLAN @default(FREE)
-  isNotified     Boolean           @default(false)
-  notifiedAt     DateTime?
-  ipAddress      String?
-  userAgent      String?
+  referralSource String?           @map("referral_source") // dari mana tau (IG, teman, dll)
+  interestedPlan SUBSCRIPTION_PLAN @default(FREE) @map("interested_plan")
+  isNotified     Boolean           @default(false) @map("is_notified")
+  notifiedAt     DateTime?         @map("notified_at")
+  ipAddress      String?           @map("ip_address")
+  userAgent      String?           @map("user_agent")
   metadata       Json? // additional info
   discountCode   DiscountCode?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
 
   @@index([email])
   @@index([isNotified])
@@ -40,20 +40,20 @@ model User {
   id                    String            @id
   name                  String
   email                 String
-  emailVerified         Boolean
+  emailVerified         Boolean           @map("email_verified")
   image                 String?
   role                  String            @default("customer")
-  hasOnboarding         Boolean           @default(false)
-  businessName          String?
-  businessCategory      BusinessCategory?
-  businessSize          BusinessSize?
+  hasOnboarding         Boolean           @default(false) @map("has_onboarding")
+  businessName          String?           @map("business_name")
+  businessCategory      BusinessCategory? @map("business_category")
+  businessSize          BusinessSize?     @map("business_size")
   location              String?
   goals                 String?
-  onboardingStep        OnboardingStep    @default(BUSINESS_INFO)
-  onboardingCompletedAt DateTime?
+  onboardingStep        OnboardingStep    @default(BUSINESS_INFO) @map("onboarding_step")
+  onboardingCompletedAt DateTime?         @map("onboarding_completed_at")
   agreements            Boolean           @default(false)
-  createdAt             DateTime
-  updatedAt             DateTime
+  createdAt             DateTime          @map("created_at")
+  updatedAt             DateTime          @map("updated_at")
   sessions              Session[]
   accounts              Account[]
   subscription          Subscription?
@@ -103,13 +103,13 @@ enum OnboardingStep {
 
 model Session {
   id        String   @id
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
   token     String
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
+  createdAt DateTime @map("created_at")
+  updatedAt DateTime @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
@@ -119,19 +119,19 @@ model Session {
 
 model Account {
   id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
   password              String?
-  createdAt             DateTime
-  updatedAt             DateTime
+  createdAt             DateTime  @map("created_at")
+  updatedAt             DateTime  @map("updated_at")
 
   @@map("account")
   @@schema("zosmed")
@@ -141,9 +141,9 @@ model Verification {
   id         String    @id
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime?
-  updatedAt  DateTime?
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime? @map("created_at")
+  updatedAt  DateTime? @map("updated_at")
 
   @@map("verification")
   @@schema("zosmed")
@@ -152,30 +152,30 @@ model Verification {
 model Subscription {
   id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user           User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String?           @unique
-  createdAt      DateTime          @default(now())
+  userId         String?           @unique @map("user_id")
+  createdAt      DateTime          @default(now()) @map("created_at")
   plan           SUBSCRIPTION_PLAN @default(FREE)
-  updatedAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @map("updated_at")
   // Limits & Usage
-  maxAccounts    Int               @default(1)
-  maxDMPerMonth  Int               @default(100)
-  currentDMCount Int               @default(0)
-  dmResetDate    DateTime          @default(now())
+  maxAccounts    Int               @default(1) @map("max_accounts")
+  maxDMPerMonth  Int               @default(100) @map("max_dm_per_month")
+  currentDMCount Int               @default(0) @map("current_dm_count")
+  dmResetDate    DateTime          @default(now()) @map("dm_reset_date")
 
   // AI Features
-  hasAIReply          Boolean            @default(false)
-  hasAISalesPredictor Boolean            @default(false)
-  maxAIReplyPerMonth  Int                @default(100)
+  hasAIReply          Boolean            @default(false) @map("has_ai_reply")
+  hasAISalesPredictor Boolean            @default(false) @map("has_ai_sales_predictor")
+  maxAIReplyPerMonth  Int                @default(100) @map("max_ai_reply_per_month")
   // Billing
   status              SubscriptionStatus @default(ACTIVE)
-  currentPeriodStart  DateTime?
-  currentPeriodEnd    DateTime?
-  cancelAtPeriodEnd   Boolean            @default(false)
+  currentPeriodStart  DateTime?          @map("current_period_start")
+  currentPeriodEnd    DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd   Boolean            @default(false) @map("cancel_at_period_end")
 
   // Link to pricing plan
   pricingPlan   PricingPlan? @relation(fields: [pricingPlanId], references: [id])
-  pricingPlanId String?
-  customPlan    Json? // For custom/legacy plans
+  pricingPlanId String?      @map("pricing_plan_id")
+  customPlan    Json?        @map("custom_plan") // For custom/legacy plans
 
   @@map("subscription")
   @@schema("zosmed")
@@ -200,22 +200,22 @@ enum SubscriptionStatus {
 
 model Integration {
   id              String           @id @default(cuid())
-  userId          String
+  userId          String           @map("user_id")
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type            INTEGRATION_TYPE @default(INSTAGRAM)
-  accountUsername String
-  accountId       String           @unique // Instagram account ID
-  accessToken     String           @db.Text
-  refreshToken    String?          @db.Text
-  tokenType       String?
+  accountUsername String           @map("account_username")
+  accountId       String           @unique @map("account_id") // Instagram account ID
+  accessToken     String           @map("access_token") @db.Text
+  refreshToken    String?          @map("refresh_token") @db.Text
+  tokenType       String?          @map("token_type")
   scope           String?
-  expiresAt       DateTime?
-  lastSyncAt      DateTime?
+  expiresAt       DateTime?        @map("expires_at")
+  lastSyncAt      DateTime?        @map("last_sync_at")
   workflows       Workflow[]
   comments        Comment[]
   messages        DirectMessage[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
   usageTracking   UsageTracking[]
 
   @@unique([userId, accountId])
@@ -232,12 +232,12 @@ enum INTEGRATION_TYPE {
 
 model DirectMessage {
   id            String      @id @default(cuid())
-  integrationId String
+  integrationId String      @map("integration_id")
   integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   // Message identifiers
-  messageId String @unique
-  threadId  String
+  messageId String @unique @map("message_id")
+  threadId  String @map("thread_id")
 
   // Direction of message
   direction MessageDirection @default(INCOMING) // INCOMING or OUTGOING
@@ -249,10 +249,10 @@ model DirectMessage {
   // - senderId = Our Instagram account (integration)
   // - recipientId = Instagram user we're sending to
 
-  senderId          String
-  senderUsername    String
-  recipientId       String?
-  recipientUsername String?
+  senderId          String  @map("sender_id")
+  senderUsername    String  @map("sender_username")
+  recipientId       String? @map("recipient_id")
+  recipientUsername String? @map("recipient_username")
 
   // Message content
   text        String  @db.Text
@@ -260,21 +260,21 @@ model DirectMessage {
 
   // Timestamps
   timestamp DateTime // Instagram's timestamp
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Reply tracking (for INCOMING messages)
-  isReplied      Boolean   @default(false)
-  repliedAt      DateTime?
-  replyMessageId String? // ID of our reply message
+  isReplied      Boolean   @default(false) @map("is_replied")
+  repliedAt      DateTime? @map("replied_at")
+  replyMessageId String?   @map("reply_message_id") // ID of our reply message
 
   // For OUTGOING messages
-  deliveryStatus DeliveryStatus? // SENT, DELIVERED, READ, FAILED
-  failureReason  String?
+  deliveryStatus DeliveryStatus? @map("delivery_status") // SENT, DELIVERED, READ, FAILED
+  failureReason  String?         @map("failure_reason")
 
   // Workflow tracking
-  workflowExecutionId  String?
-  triggeredByCommentId String? // If DM was triggered by comment
+  workflowExecutionId  String? @map("workflow_execution_id")
+  triggeredByCommentId String? @map("triggered_by_comment_id") // If DM was triggered by comment
 
   // Metadata
   metadata Json? // Additional data (webhook info, etc)
@@ -316,24 +316,24 @@ enum ReplyStatus {
 
 model Comment {
   id                  String       @id @default(cuid())
-  integrationId       String
+  integrationId       String       @map("integration_id")
   integration         Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-  commentId           String       @unique
-  postId              String
-  parentId            String?
-  userId              String
+  commentId           String       @unique @map("comment_id")
+  postId              String       @map("post_id")
+  parentId            String?      @map("parent_id")
+  userId              String       @map("user_id")
   username            String
   text                String       @db.Text
-  isReplied           Boolean      @default(false)
-  repliedAt           DateTime?
-  replyText           String?      @db.Text
-  replyStatus         ReplyStatus?
-  dmSent              Boolean      @default(false)
-  dmSentAt            DateTime?
-  workflowExecutionId String?
+  isReplied           Boolean      @default(false) @map("is_replied")
+  repliedAt           DateTime?    @map("replied_at")
+  replyText           String?      @map("reply_text") @db.Text
+  replyStatus         ReplyStatus? @map("reply_status")
+  dmSent              Boolean      @default(false) @map("dm_sent")
+  dmSentAt            DateTime?    @map("dm_sent_at")
+  workflowExecutionId String?      @map("workflow_execution_id")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([integrationId, isReplied])
   @@index([postId])
@@ -343,21 +343,21 @@ model Comment {
 
 model Workflow {
   id             String                   @id @default(cuid())
-  userId         String
-  integrationId  String
+  userId         String                   @map("user_id")
+  integrationId  String                   @map("integration_id")
   integration    Integration              @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   name           String
   description    String?
   definition     String
-  isActive       Boolean                  @default(true)
-  triggerType    WorkflowTriggerType
-  lastRunAt      DateTime?
-  lastRunStatus  WorkflowExecutionStatus?
-  totalRuns      Int                      @default(0)
-  successfulRuns Int                      @default(0)
+  isActive       Boolean                  @default(true) @map("is_active")
+  triggerType    WorkflowTriggerType      @map("trigger_type")
+  lastRunAt      DateTime?                @map("last_run_at")
+  lastRunStatus  WorkflowExecutionStatus? @map("last_run_status")
+  totalRuns      Int                      @default(0) @map("total_runs")
+  successfulRuns Int                      @default(0) @map("successful_runs")
   executions     WorkflowExecution[]
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
   User           User                     @relation(fields: [userId], references: [id])
 
   @@unique([name, userId])
@@ -384,19 +384,19 @@ enum WorkflowStatus {
 
 model WorkflowExecution {
   id              String                  @id @default(cuid())
-  workflowId      String
-  userId          String
+  workflowId      String                  @map("workflow_id")
+  userId          String                  @map("user_id")
   trigger         String
   status          WorkflowExecutionStatus @default(PENDING)
-  createdAt       DateTime                @default(now())
-  startedAt       DateTime?
-  completedAt     DateTime?
+  createdAt       DateTime                @default(now()) @map("created_at")
+  startedAt       DateTime?               @map("started_at")
+  completedAt     DateTime?               @map("completed_at")
   definition      String                  @default("{}")
-  creditsConsumed Int                     @default(0)
+  creditsConsumed Int                     @default(0) @map("credits_consumed")
   phases          ExecutionPhase[]
   workflow        Workflow                @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   metadata        String?
-  errorMessage    String?
+  errorMessage    String?                 @map("error_message")
 
   @@map("workflow_execution")
   @@schema("zosmed")
@@ -414,18 +414,18 @@ enum WorkflowExecutionStatus {
 
 model ExecutionPhase {
   id                  String               @id @default(cuid())
-  userId              String
+  userId              String               @map("user_id")
   status              ExecutionPhaseStatus @default(PENDING)
   number              Int
   node                String
   name                String
-  startedAt           DateTime?
-  completedAt         DateTime?
+  startedAt           DateTime?            @map("started_at")
+  completedAt         DateTime?            @map("completed_at")
   inputs              String?
   outputs             String?
-  errorMessage        String?
-  creditsConsumed     Int?
-  workflowExecutionId String
+  errorMessage        String?              @map("error_message")
+  creditsConsumed     Int?                 @map("credits_consumed")
+  workflowExecutionId String               @map("workflow_execution_id")
   execution           WorkflowExecution    @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
   logs                ExecutionLog[]
 
@@ -445,10 +445,10 @@ enum ExecutionPhaseStatus {
 
 model ExecutionLog {
   id               String         @id @default(cuid())
-  logLevel         LogLevel       @default(INFO)
+  logLevel         LogLevel       @default(INFO) @map("log_level")
   message          String
   timestamp        DateTime       @default(now())
-  executionPhaseId String
+  executionPhaseId String         @map("execution_phase_id")
   executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
 
   @@map("execution_log")
@@ -470,10 +470,10 @@ model WorkflowTemplate {
   description String
   category    String // e.g., "Sales", "Support", "Community"
   definition  String
-  isPremium   Boolean @default(false)
+  isPremium   Boolean @default(false) @map("is_premium")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("workflow_template")
   @@schema("zosmed")
@@ -482,10 +482,10 @@ model WorkflowTemplate {
 model Notification {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   User      User?    @relation(fields: [userId], references: [id])
-  userId    String?
-  isSeen    Boolean  @default(false)
+  userId    String?  @map("user_id")
+  isSeen    Boolean  @default(false) @map("is_seen")
   content   String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("notification")
   @@schema("zosmed")
@@ -493,15 +493,15 @@ model Notification {
 
 model UsageTracking {
   id             String      @id @default(cuid())
-  userId         String
-  integrationId  String
+  userId         String      @map("user_id")
+  integrationId  String      @map("integration_id")
   user           User        @relation(fields: [userId], references: [id])
   integration    Integration @relation(fields: [integrationId], references: [id])
   date           DateTime    @db.Date
-  dmSent         Int         @default(0)
-  commentReplied Int         @default(0)
-  workflowRuns   Int         @default(0)
-  createdAt      DateTime    @default(now())
+  dmSent         Int         @default(0) @map("dm_sent")
+  commentReplied Int         @default(0) @map("comment_replied")
+  workflowRuns   Int         @default(0) @map("workflow_runs")
+  createdAt      DateTime    @default(now()) @map("created_at")
 
   @@unique([userId, integrationId, date])
   @@index([userId, date])
@@ -516,9 +516,9 @@ model WebhookEvent {
   payload      String
   headers      String?
   metadata     String? // processing details
-  errorMessage String?
-  receivedAt   DateTime  @default(now())
-  processedAt  DateTime?
+  errorMessage String?   @map("error_message")
+  receivedAt   DateTime  @default(now()) @map("received_at")
+  processedAt  DateTime? @map("processed_at")
 
   @@index([source, status])
   @@index([receivedAt])
@@ -528,12 +528,12 @@ model WebhookEvent {
 
 model WebhookError {
   id             String   @id @default(cuid())
-  webhookEventId String
-  integrationId  String
+  webhookEventId String   @map("webhook_event_id")
+  integrationId  String   @map("integration_id")
   field          String // comments, messages, etc
   error          String
   payload        Json
-  createdAt      DateTime @default(now())
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([webhookEventId])
   @@index([integrationId])
@@ -547,18 +547,18 @@ model DiscountCode {
   type              DiscountType    @default(PERCENTAGE)
   value             Float // 50 for 50% or 50000 for Rp 50k
   description       String?
-  validFrom         DateTime        @default(now())
-  validUntil        DateTime?
-  maxUses           Int? // null = unlimited
-  currentUses       Int             @default(0)
-  minPurchaseAmount Float? // Minimum order amount
-  applicablePlans   String[] // ["STARTER", "PRO"] or empty for all
-  isActive          Boolean         @default(true)
-  waitinglistId     String?         @unique
+  validFrom         DateTime        @default(now()) @map("valid_from")
+  validUntil        DateTime?       @map("valid_until")
+  maxUses           Int?            @map("max_uses") // null = unlimited
+  currentUses       Int             @default(0) @map("current_uses")
+  minPurchaseAmount Float?          @map("min_purchase_amount") // Minimum order amount
+  applicablePlans   String[]        @map("applicable_plans") // ["STARTER", "PRO"] or empty for all
+  isActive          Boolean         @default(true) @map("is_active")
+  waitinglistId     String?         @unique @map("waitinglist_id")
   waitinglist       Waitinglist?    @relation(fields: [waitinglistId], references: [id])
   usages            DiscountUsage[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
 
   @@index([code, isActive])
   @@map("discount_code")
@@ -574,14 +574,14 @@ enum DiscountType {
 
 model DiscountUsage {
   id             String       @id @default(cuid())
-  discountId     String
+  discountId     String       @map("discount_id")
   discount       DiscountCode @relation(fields: [discountId], references: [id])
-  userId         String
+  userId         String       @map("user_id")
   user           User         @relation(fields: [userId], references: [id])
-  appliedAt      DateTime     @default(now())
-  orderAmount    Float
-  discountAmount Float
-  subscriptionId String?
+  appliedAt      DateTime     @default(now()) @map("applied_at")
+  orderAmount    Float        @map("order_amount")
+  discountAmount Float        @map("discount_amount")
+  subscriptionId String?      @map("subscription_id")
 
   @@unique([discountId, userId]) // One discount per user
   @@map("discount_usage")
@@ -591,26 +591,26 @@ model DiscountUsage {
 model PricingPlan {
   id                 String         @id @default(cuid())
   name               String         @unique // FREE, STARTER, PRO
-  displayName        String // "Free", "Starter", "Pro"
+  displayName        String         @map("display_name") // "Free", "Starter", "Pro"
   description        String?
   price              Float          @default(0)
   currency           String         @default("IDR")
   period             PricingPeriod  @default(MONTHLY)
   color              String // "from-blue-500 to-cyan-500"
-  bgColor            String // "bg-blue-50"
-  borderColor        String // "border-blue-200"
+  bgColor            String         @map("bg_color") // "bg-blue-50"
+  borderColor        String         @map("border_color") // "border-blue-200"
   popular            Boolean        @default(false)
   badge              String? // "BEST VALUE", "RECOMMENDED"
-  maxAccounts        Int            @default(1)
-  maxDMPerMonth      Int            @default(100)
-  maxAIReplyPerMonth Int            @default(0)
+  maxAccounts        Int            @default(1) @map("max_accounts")
+  maxDMPerMonth      Int            @default(100) @map("max_dm_per_month")
+  maxAIReplyPerMonth Int            @default(0) @map("max_ai_reply_per_month")
   features           Json // Array of feature objects
-  isActive           Boolean        @default(true)
-  sortOrder          Int            @default(0)
+  isActive           Boolean        @default(true) @map("is_active")
+  sortOrder          Int            @default(0) @map("sort_order")
   subscriptions      Subscription[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   payment   Payment[]
 
   @@index([isActive, sortOrder])
@@ -629,24 +629,24 @@ enum PricingPeriod {
 
 model Payment {
   id                String        @id @default(cuid())
-  userId            String
+  userId            String        @map("user_id")
   user              User          @relation(fields: [userId], references: [id])
-  planId            String?
+  planId            String?       @map("plan_id")
   plan              PricingPlan?  @relation(fields: [planId], references: [id])
-  externalId        String        @unique
-  xenditInvoiceId   String?       @unique
-  xenditInvoiceUrl  String?
-  xenditRecurringId String?
+  externalId        String        @unique @map("external_id")
+  xenditInvoiceId   String?       @unique @map("xendit_invoice_id")
+  xenditInvoiceUrl  String?       @map("xendit_invoice_url")
+  xenditRecurringId String?       @map("xendit_recurring_id")
   amount            Float
   currency          String        @default("IDR")
   status            PaymentStatus @default(PENDING)
-  paymentMethod     String?
-  paymentChannel    String?
-  discountCode      String?
-  discountAmount    Float?
-  createdAt         DateTime      @default(now())
-  paidAt            DateTime?
-  expiredAt         DateTime?
+  paymentMethod     String?       @map("payment_method")
+  paymentChannel    String?       @map("payment_channel")
+  discountCode      String?       @map("discount_code")
+  discountAmount    Float?        @map("discount_amount")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  paidAt            DateTime?     @map("paid_at")
+  expiredAt         DateTime?     @map("expired_at")
   metadata          Json?
 
   @@index([userId, status])

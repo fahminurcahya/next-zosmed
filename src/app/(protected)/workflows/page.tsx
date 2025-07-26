@@ -146,8 +146,8 @@ export default function WorkflowsPage() {
                 open={showCreateModal}
                 onOpenChange={setShowCreateModal}
             />
-            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50/20">
-                <div className="container max-w-7xl py-8">
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50/20 p-6 space-y-6">
+                <div className="container max-w-7xl">
                     {/* Header */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}

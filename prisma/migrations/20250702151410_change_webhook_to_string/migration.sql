@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "zosmed"."WebhookEvent" ALTER COLUMN "payload" SET DATA TYPE TEXT,
-ALTER COLUMN "headers" SET DATA TYPE TEXT,
-ALTER COLUMN "metadata" SET DATA TYPE TEXT;

@@ -39,7 +39,6 @@ export const PlanCard: FC<PlanCardProps> = ({
             className={cn(
                 "relative cursor-pointer transition-all hover:shadow-lg",
                 isSelected && "ring-2 ring-blue-500 shadow-lg",
-                plan.visual.popular && "scale-105",
                 isCurrentPlan && "opacity-75 cursor-default",
                 className
             )}

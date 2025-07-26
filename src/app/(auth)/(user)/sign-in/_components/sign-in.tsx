@@ -10,6 +10,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema, type signInSchemaType } from "@/schema/user";
+import Link from "next/link";
 
 export default function SignIn() {
     const router = useRouter();
@@ -86,9 +87,15 @@ export default function SignIn() {
                             name="password"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="flex gap-1 items-center">
-                                        Password
-                                    </FormLabel>
+                                    <div className="flex justify-between items-center">
+                                        <FormLabel>Password</FormLabel>
+                                        <Link
+                                            href="/forget-password"
+                                            className="text-sm text-blue-600 hover:underline"
+                                        >
+                                            Lupa password?
+                                        </Link>
+                                    </div>
                                     <FormControl>
                                         <Input {...field} type="password"
                                             placeholder="Input password"

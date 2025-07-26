@@ -168,6 +168,22 @@ export function generateVerificationHTML(data: { name: string; verificationUrl: 
   `;
 }
 
+export function generateResetPasswordHTML(data: { name: string; url: string }) {
+  return `
+    <div>
+        <h2>Reset Password</h2>
+        <p>Halo ${data.name},</p>
+        <p>Klik link di bawah untuk reset password Anda:</p>
+        <a href="${data.url}" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Reset Password
+        </a>
+        <p>atau copy link ini: ${data.url}</p>
+        <p>Link ini akan expired dalam 1 jam.</p>
+        <p>Jika Anda tidak meminta reset password, abaikan email ini.</p>
+    </div>
+  `;
+}
+
 
 
 

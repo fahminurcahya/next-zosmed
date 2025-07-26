@@ -4,10 +4,9 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { headers } from "next/headers";
 import { cache } from "react";
-import sendVerificationMail from "./services/email-service";
 import { UserService } from "./services/user-service";
 import { replaceCallbackURL } from "./helper/common";
-import { ur } from "zod/v4/locales";
+import { sendResetPassword, sendVerificationMail } from "./services/email-service";
 
 const prisma = new PrismaClient();
 const userService = new UserService();
@@ -19,6 +18,14 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
         requireEmailVerification: true,
+        sendResetPassword: async ({ user, url, token }) => {
+            // Kirim email reset password
+            await sendResetPassword({
+                to: user.email,
+                name: user.name,
+                url: url,
+            });
+        },
     },
     emailVerification: {
         sendVerificationEmail: async ({ user, url, token }, request) => {

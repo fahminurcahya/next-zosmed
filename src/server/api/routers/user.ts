@@ -6,6 +6,7 @@ import { mapBusinessCategoryFromPrisma, mapBusinessCategoryToPrisma, mapBusiness
 import { updateBusinessInfoSchema, updateProfileSchema } from "@/schema/user";
 import { auth } from "@/server/auth";
 import { UserService } from "@/server/services/user-service";
+import { headers } from "next/headers";
 
 const userService = new UserService();
 
@@ -41,11 +42,6 @@ export const userRouter = createTRPCRouter({
                                 }
                             }
                         },
-                        integration: {
-                            select: {
-                                type: true,
-                            }
-                        }
                     },
                 });
 
@@ -78,9 +74,6 @@ export const userRouter = createTRPCRouter({
                             planName: user.subscription.pricingPlan?.name || 'Free',
                             planPrice: user.subscription.pricingPlan?.price || 0,
                         } : null,
-                        integrations: user.integration.map(int => ({
-                            type: int.type,
-                        })),
                     },
                 };
 
@@ -94,6 +87,60 @@ export const userRouter = createTRPCRouter({
                 throw new TRPCError({
                     code: "INTERNAL_SERVER_ERROR",
                     message: "Gagal mengambil profile.",
+                });
+            }
+        }),
+
+    changePassword: protectedProcedure
+        .input(z.object({
+            currentPassword: z.string().min(1, "Current password is required"),
+            newPassword: z.string()
+                .min(8, "Password baru minimal 8 karakter")
+                .max(100, "Password maksimal 100 karakter")
+                .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password harus mengandung minimal 1 huruf kecil, 1 huruf besar, dan 1 angka"),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const userId = ctx.session.user.id;
+
+            try {
+                const body = {
+                    newPassword: input.newPassword,
+                    currentPassword: input.currentPassword,
+                }
+                const isValid = await auth.api.changePassword(
+                    {
+                        headers: await headers(),
+                        body: body,
+                    }
+                );
+
+                if (!isValid) {
+                    throw new TRPCError({
+                        code: "UNAUTHORIZED",
+                        message: "Password saat ini tidak sesuai",
+                    });
+                }
+
+                // Create notification
+                await ctx.db.notification.create({
+                    data: {
+                        userId,
+                        content: "Password berhasil diubah",
+                    },
+                });
+
+                return {
+                    success: true,
+                    message: "Password berhasil diubah",
+                };
+            } catch (error: any) {
+                if (error.code === "UNAUTHORIZED") {
+                    throw error;
+                }
+
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: "Gagal mengubah password",
                 });
             }
         }),

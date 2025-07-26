@@ -9,6 +9,7 @@ import { ProfileHeader } from './_components/profile-header';
 import { ProfileTabs } from './_components/profile-tab';
 import { PersonalInfoForm } from './_components/personal-info-form';
 import { BusinessInfoForm } from './_components/business-info.form';
+import { SecuritySection } from './_components/security-section';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -18,8 +19,18 @@ export default function ProfilePage() {
         isLoading,
         handleUpdateProfile,
         handleUpdateBusinessInfo,
+        handleChangePassword
     } = useProfile();
-    const { activeTab, setActiveTab } = useProfileForms();
+    const {
+        activeTab,
+        setActiveTab,
+        showCurrentPassword,
+        showNewPassword,
+        showConfirmPassword,
+        showDeleteModal,
+        setShowDeleteModal,
+        togglePasswordVisibility
+    } = useProfileForms();
 
     if (isProfileLoading) {
         return (
@@ -114,6 +125,19 @@ export default function ProfilePage() {
                                     }}
                                     onSubmit={handleUpdateBusinessInfo}
                                     isLoading={isLoading}
+                                />
+                            )}
+
+                            {activeTab === 'security' && (
+                                <SecuritySection
+                                    onChangePassword={handleChangePassword}
+                                    isLoading={isLoading}
+                                    showPasswords={{
+                                        current: showCurrentPassword,
+                                        new: showNewPassword,
+                                        confirm: showConfirmPassword
+                                    }}
+                                    onTogglePasswordVisibility={togglePasswordVisibility}
                                 />
                             )}
                         </motion.div>

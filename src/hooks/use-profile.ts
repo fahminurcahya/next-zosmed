@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '@/trpc/react';
 import { toast } from 'sonner';
-import type { UpdateBusinessInfoInput, UpdateProfileInput } from '@/schema/user';
+import type { ChangePasswordInput, UpdateBusinessInfoInput, UpdateProfileInput } from '@/schema/user';
 
 
 export function useProfile() {
@@ -37,14 +37,14 @@ export function useProfile() {
     });
 
     // Change password mutation
-    // const changePasswordMutation = api.user.changePassword.useMutation({
-    //     onSuccess: (data) => {
-    //         toast.success(data.message || 'Password berhasil diubah');
-    //     },
-    //     onError: (error) => {
-    //         toast.error(error.message || 'Gagal mengubah password');
-    //     },
-    // });
+    const changePasswordMutation = api.user.changePassword.useMutation({
+        onSuccess: (data) => {
+            toast.success(data.message || 'Password berhasil diubah');
+        },
+        onError: (error) => {
+            toast.error(error.message || 'Gagal mengubah password');
+        },
+    });
 
     // Delete account mutation
     // const deleteAccountMutation = api.user.deleteAccount.useMutation({
@@ -77,14 +77,14 @@ export function useProfile() {
         }
     };
 
-    // const handleChangePassword = async (data: ChangePasswordInput) => {
-    //     setIsLoading(true);
-    //     try {
-    //         await changePasswordMutation.mutateAsync(data);
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
+    const handleChangePassword = async (data: ChangePasswordInput) => {
+        setIsLoading(true);
+        try {
+            await changePasswordMutation.mutateAsync(data);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // const handleDeleteAccount = async (data: DeleteAccountInput) => {
     //     setIsLoading(true);
@@ -108,6 +108,7 @@ export function useProfile() {
         // Handlers
         handleUpdateProfile,
         handleUpdateBusinessInfo,
+        handleChangePassword,
 
         // Refetch
         refetchProfile,

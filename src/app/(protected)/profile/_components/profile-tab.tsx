@@ -1,4 +1,4 @@
-import { Building2, Lock, User } from "lucide-react";
+import { Building2, Lock, Shield, User } from "lucide-react";
 import { motion } from 'framer-motion';
 import { Separator } from "@/components/ui/separator";
 
@@ -16,7 +16,8 @@ interface ProfileTabsProps {
 
 const tabs: Tab[] = [
     { id: 'profile', name: 'Profile', icon: User },
-    { id: 'business', name: 'Business Info', icon: Building2 }
+    { id: 'business', name: 'Business Info', icon: Building2 },
+    { id: 'security', name: 'Security', icon: Shield }
 ];
 
 export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {

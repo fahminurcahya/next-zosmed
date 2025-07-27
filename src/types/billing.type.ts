@@ -79,6 +79,7 @@ export interface FormattedSubscription {
     maxDMPerMonth: number;
     maxAIReplyPerMonth: number;
     currentDMCount: number;
+    currentAICount: number;
     daysRemaining: number | null;
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;

@@ -95,20 +95,18 @@ export const billingRouter = createTRPCRouter({
 
             // Apply discount if provided
             if (input.discountCode) {
-                try {
-                    const discountResult = await discountService.applyDiscount(
-                        input.discountCode,
-                        ctx.session.user.id,
-                        plan.name,
-                        plan.price
-                    );
-                    finalAmount = discountResult.finalAmount;
-                    discountAmount = discountResult.discountAmount;
-                } catch (error) {
-                    // Ignore discount errors, proceed with full price
-                    console.error("Discount error:", error);
-                }
+                const discountResult = await discountService.applyDiscount(
+                    input.discountCode,
+                    ctx.session.user.id,
+                    plan.name,
+                    plan.price
+                );
+                finalAmount = discountResult.finalAmount;
+                discountAmount = discountResult.discountAmount;
             }
+
+            console.log("finalAmount")
+            console.log(finalAmount)
 
             // Create invoice
             const invoice = await xenditService.createInvoice({
@@ -229,13 +227,15 @@ export const billingRouter = createTRPCRouter({
     // Get available payment methods
     getPaymentMethods: protectedProcedure.query(async () => {
         const methods = await xenditService.getAvailablePaymentMethods();
+        // console.log(methods)
 
-        return methods.map((method: any) => ({
-            type: method.type,
-            name: method.displayName,
-            logo: method.logo,
-            enabled: method.status === "ACTIVE",
-        }));
+        // return methods.map((method: any) => ({
+        //     type: method.type,
+        //     name: method.displayName,
+        //     logo: method.logo,
+        //     enabled: method.status === "ACTIVE",
+        // }));
+        return methods
     }),
 
     // Simulate payment (dev only)

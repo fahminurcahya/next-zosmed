@@ -109,9 +109,11 @@ export const xenditService = {
                     invoicePaid: ["email", "whatsapp"],
                 },
                 description: params.description,
-                invoiceDuration: 86400, // 24 hours in seconds
-                successRedirectUrl: params.successRedirectUrl || `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
-                failureRedirectUrl: params.failureRedirectUrl || `${process.env.NEXT_PUBLIC_APP_URL}/billing/failed`,
+                invoiceDuration: parseInt(process.env.XENDIT_INVOICE_DURATION || "86400"), // 24 hours in seconds
+                successRedirectUrl: params.successRedirectUrl
+                    || `${process.env.NEXT_PUBLIC_APP_URL}/billing/success?external_id=${externalId}&invoice_id={id}`,
+                failureRedirectUrl: params.failureRedirectUrl
+                    || `${process.env.NEXT_PUBLIC_APP_URL}/billing/failed?external_id=${externalId}&invoice_id={id}`,
                 paymentMethods: params.paymentMethods || [
                     "CREDIT_CARD",
                     "BCA",
@@ -355,25 +357,27 @@ export const xenditService = {
     }) {
         try {
             const paymentMethods = await paymentMethodClient.getAllPaymentMethods();
-            console.log(paymentMethods)
+            // console.log("paymentMethods")
+            // console.log(paymentMethods)
 
-            // Group by type
-            const grouped = paymentMethods.data?.reduce((acc: any, method: any) => {
-                const type = method.type;
-                if (!acc[type]) acc[type] = [];
-                acc[type].push({
-                    id: method.id,
-                    type: method.type,
-                    name: method.name || method.type,
-                    channelCode: method.channelCode,
-                    isActivated: method.status === "ACTIVE",
-                    logo: method.logo,
-                });
-                return acc;
-            }, {} as Record<string, any[]>) || {};
-            console.log(grouped)
+            // // Group by type
+            // const grouped = paymentMethods.data?.reduce((acc: any, method: any) => {
+            //     const type = method.type;
+            //     if (!acc[type]) acc[type] = [];
+            //     acc[type].push({
+            //         id: method.id,
+            //         type: method.type,
+            //         name: method.name || method.type,
+            //         channelCode: method.channelCode,
+            //         isActivated: method.status === "ACTIVE",
+            //         logo: method.logo,
+            //     });
+            //     return acc;
+            // }, {} as Record<string, any[]>) || {};
+            // // console.log(grouped)
 
-            return grouped;
+            // return grouped;
+            return paymentMethods.data;
         } catch (error: any) {
             console.error("Get payment methods error:", error);
             return {};
@@ -458,8 +462,8 @@ export const xenditService = {
                 currentPeriodEnd: endDate,
                 cancelAtPeriodEnd: false,
                 maxAccounts: payment.plan?.maxAccounts || 1,
-                maxDMPerMonth: payment.plan?.maxDMPerMonth || 100,
-                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 0,
+                maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
+                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
                 hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
             },
             create: {
@@ -469,8 +473,8 @@ export const xenditService = {
                 status: "ACTIVE",
                 currentPeriodEnd: endDate,
                 maxAccounts: payment.plan?.maxAccounts || 1,
-                maxDMPerMonth: payment.plan?.maxDMPerMonth || 100,
-                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 0,
+                maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
+                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
                 hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
             },
         });

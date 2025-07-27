@@ -7,6 +7,7 @@ import { Check, X, Star } from "lucide-react";
 import type { FormattedPlan } from "@/types/billing.type";
 import { cn } from "@/lib/utils";
 import { comparePlans } from "@/lib/billing";
+import React from "react";
 
 interface PlanComparisonTableProps {
     plans: FormattedPlan[];
@@ -25,11 +26,12 @@ export const PlanComparisonTable: FC<PlanComparisonTableProps> = ({
 }) => {
     const comparison = comparePlans(plans);
 
+    console.log(comparison)
+
     // Group features by category
     const featureCategories = [
         { name: "Limits", features: ["Instagram Accounts", "Auto DM per Month", "AI Replies per Month"] },
-        { name: "Automation", features: comparison.filter(f => f.feature.toLowerCase().includes("auto") || f.feature.toLowerCase().includes("workflow")).map(f => f.feature) },
-        { name: "AI Features", features: comparison.filter(f => f.feature.toLowerCase().includes("ai") || f.feature.toLowerCase().includes("intent")).map(f => f.feature) },
+        { name: "Features", features: comparison.filter(f => f.feature.toLowerCase().includes("workflow") || f.feature.toLowerCase().includes("intent")).map(f => f.feature) },
         { name: "Analytics & Support", features: comparison.filter(f => f.feature.toLowerCase().includes("analytic") || f.feature.toLowerCase().includes("support") || f.feature.toLowerCase().includes("dashboard")).map(f => f.feature) },
     ];
 
@@ -115,8 +117,8 @@ export const PlanComparisonTable: FC<PlanComparisonTableProps> = ({
                                 if (categoryFeatures.length === 0) return null;
 
                                 return (
-                                    <>
-                                        <tr key={category.name} className="border-b bg-gray-50/50 dark:bg-gray-800/50">
+                                    <React.Fragment key={category.name}>
+                                        <tr className="border-b bg-gray-50/50 dark:bg-gray-800/50">
                                             <td colSpan={plans.length + 1} className="p-3 font-semibold text-sm text-gray-600 dark:text-gray-400">
                                                 {category.name.toUpperCase()}
                                             </td>
@@ -139,7 +141,7 @@ export const PlanComparisonTable: FC<PlanComparisonTableProps> = ({
                                                 ))}
                                             </tr>
                                         ))}
-                                    </>
+                                    </React.Fragment>
                                 );
                             })}
                         </tbody>

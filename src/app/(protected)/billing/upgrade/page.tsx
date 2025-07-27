@@ -33,7 +33,6 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Check,
@@ -77,10 +76,7 @@ export default function UpgradePlanPage() {
     const router = useRouter();
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const [discountCode, setDiscountCode] = useState("");
-    const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [comparisonMode, setComparisonMode] = useState(false);
-    const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([]);
     const { subscription, usage, isLoading: subLoading } = useSubscription();
     const { eligibility, isLoading: plansLoading } = useUpgradePlans();
     const { handleAction, isProcessing: actionProcessing } = useSubscriptionActions();
@@ -89,27 +85,6 @@ export default function UpgradePlanPage() {
         selectedPlanId,
         !!discountCode && !!selectedPlanId
     );
-
-    // Queries
-    const paymentMethodsQuery = api.billing.getPaymentMethods.useQuery();
-
-    // Mutations
-    const createInvoiceMutation = api.billing.createInvoice.useMutation({
-        onSuccess: (data) => {
-            // Show payment method selection if multiple methods available
-            if (data.availableBanks?.length || data.availableEwallets?.length) {
-                setShowPaymentDialog(true);
-                sessionStorage.setItem('xendit_invoice', JSON.stringify(data));
-            } else {
-                // Redirect directly to Xendit payment page
-                window.location.href = data.invoiceUrl;
-            }
-        },
-        onError: (error) => {
-            toast.error(error.message);
-            setIsProcessing(false);
-        },
-    });
 
     const selectedPlan = eligibility.availablePlans.find(p => p.id === selectedPlanId);
 
@@ -133,36 +108,17 @@ export default function UpgradePlanPage() {
             toast.error("Please select a plan");
             return;
         }
-
-        if (selectedPaymentMethods.length === 0) {
-            // Show payment method selection dialog
-            setShowPaymentDialog(true);
-        } else {
-            processPayment();
-        }
+        processPayment();
     };
 
     const processPayment = async () => {
         if (!selectedPlanId || !subscription) return;
-
-        setIsProcessing(true);
-
-        try {
-            // Create one-time invoice
-            await createInvoiceMutation.mutateAsync({
-                planId: selectedPlanId,
-                discountCode: discountCode || undefined,
-                paymentMethods: selectedPaymentMethods.length > 0 ? selectedPaymentMethods : undefined,
-            });
-        } catch (error) {
-            setIsProcessing(false);
-        }
+        handleAction({
+            type: "UPGRADE",
+            planId: selectedPlanId,
+            discountCode: discountCode || undefined,
+        })
     };
-
-    const groupedPaymentMethods = useMemo(() => {
-        if (!paymentMethodsQuery.data) return [];
-        return groupPaymentMethods(paymentMethodsQuery.data as any);
-    }, [paymentMethodsQuery.data]);
 
     if (subLoading || plansLoading) {
         return (
@@ -374,9 +330,9 @@ export default function UpgradePlanPage() {
                                 className="w-full"
                                 size="lg"
                                 onClick={handleUpgrade}
-                                disabled={isProcessing || actionProcessing}
+                                disabled={actionProcessing}
                             >
-                                {isProcessing || actionProcessing ? (
+                                {actionProcessing ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Processing...
@@ -392,22 +348,6 @@ export default function UpgradePlanPage() {
                     )}
                 </Card>
             </div>
-
-            {/* Payment Method Selection Dialog */}
-            <PaymentMethodDialog
-                open={showPaymentDialog}
-                onOpenChange={setShowPaymentDialog}
-                plan={selectedPlan}
-                finalPrice={finalPrice + xenditFees.totalFee}
-                fees={xenditFees}
-                discountApplied={validation?.valid}
-                discountDescription={validation?.discount?.description}
-                paymentMethods={groupedPaymentMethods}
-                selectedMethods={selectedPaymentMethods}
-                onSelectMethods={setSelectedPaymentMethods}
-                onConfirm={processPayment}
-                isProcessing={isProcessing}
-            />
 
             {/* FAQ Section */}
             <Card className="mt-8">
@@ -607,7 +547,7 @@ function PaymentMethodDialog({
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="all" className="space-y-4">
+                            {/* <TabsContent value="all" className="space-y-4">
                                 {paymentMethods.map(group => (
                                     <div key={group.type}>
                                         <h4 className="font-medium mb-3">{group.displayName}</h4>
@@ -623,7 +563,7 @@ function PaymentMethodDialog({
                                         </div>
                                     </div>
                                 ))}
-                            </TabsContent>
+                            </TabsContent> */}
                         </Tabs>
 
                         {/* Selected Methods Summary */}

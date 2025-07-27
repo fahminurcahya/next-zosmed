@@ -132,6 +132,7 @@ export function getPaymentMethodInfo(method: XenditPaymentMethod) {
 
 // Group payment methods by type
 export function groupPaymentMethods(methods: XenditPaymentMethod[]) {
+    console.log(methods)
     const grouped: Record<string, XenditPaymentMethod[]> = {
         CARD: [],
         EWALLET: [],

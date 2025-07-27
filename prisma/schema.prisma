@@ -163,14 +163,16 @@ model Subscription {
   dmResetDate    DateTime          @default(now()) @map("dm_reset_date")
 
   // AI Features
-  hasAIReply          Boolean            @default(false) @map("has_ai_reply")
-  hasAISalesPredictor Boolean            @default(false) @map("has_ai_sales_predictor")
-  maxAIReplyPerMonth  Int                @default(100) @map("max_ai_reply_per_month")
+  hasAIReply          Boolean @default(false) @map("has_ai_reply")
+  hasAISalesPredictor Boolean @default(false) @map("has_ai_sales_predictor")
+  maxAIReplyPerMonth  Int     @default(100) @map("max_ai_reply_per_month")
+  currentAICount      Int     @default(0) @map("current_ai_count")
+
   // Billing
-  status              SubscriptionStatus @default(ACTIVE)
-  currentPeriodStart  DateTime?          @map("current_period_start")
-  currentPeriodEnd    DateTime?          @map("current_period_end")
-  cancelAtPeriodEnd   Boolean            @default(false) @map("cancel_at_period_end")
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime?          @map("current_period_start")
+  currentPeriodEnd   DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
 
   // Link to pricing plan
   pricingPlan   PricingPlan? @relation(fields: [pricingPlanId], references: [id])

@@ -1,6 +1,5 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,17 +18,14 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { NextPage } from 'next';
 import { api } from '@/trpc/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const BillingFailed: NextPage = () => {
     const router = useRouter();
-    const {
-        external_id,
-        invoice_id,
-        failure_reason,
-        amount,
-        plan_id,
-        payment_method
-    } = router.query;
+    const searchParams = useSearchParams();
+    const external_id = searchParams.get('external_id');
+    const failure_reason = searchParams.get('failure_reason');
+    const amount = searchParams.get('amount');
 
     const [retryCount, setRetryCount] = useState(0);
     const [paymentDetails, setPaymentDetails] = useState<any>(null);
@@ -380,3 +376,5 @@ const BillingFailed: NextPage = () => {
         </div>
     );
 };
+
+export default BillingFailed;

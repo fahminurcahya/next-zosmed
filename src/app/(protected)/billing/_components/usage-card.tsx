@@ -16,8 +16,6 @@ import {
     Users,
     MessageSquare,
     Bot,
-    Calendar,
-    Zap,
     ArrowRight
 } from "lucide-react";
 import type { FormattedSubscription } from "@/types/billing.type";
@@ -61,8 +59,8 @@ export const UsageCard: FC<UsageCardProps> = ({
     onUpgrade,
     className
 }) => {
-    const hasWarnings = usage.accounts.nearLimit || usage.dm.nearLimit || usage.ai.nearLimit;
-    const hasAnyLimit = usage.accounts.percentage >= 100 || usage.dm.percentage >= 100 || usage.ai.percentage >= 100;
+    const hasWarnings = usage.dm.nearLimit || usage.ai.nearLimit;
+    const hasAnyLimit = usage.dm.percentage >= 100 || usage.ai.percentage >= 100;
 
     // Calculate days until reset
     const daysUntilReset = Math.ceil(
@@ -87,12 +85,6 @@ export const UsageCard: FC<UsageCardProps> = ({
                             {subscription.planDisplayName} Plan • Reset dalam {daysUntilReset} hari
                         </CardDescription>
                     </div>
-                    {hasWarnings && showUpgradePrompt && onUpgrade && (
-                        <Button size="sm" variant="outline" onClick={onUpgrade}>
-                            <Zap className="h-3 w-3 mr-1" />
-                            Upgrade
-                        </Button>
-                    )}
                 </div>
             </CardHeader>
 
@@ -132,19 +124,8 @@ export const UsageCard: FC<UsageCardProps> = ({
                         type="ai"
                     />
                 )}
-
-                {/* Usage Summary */}
-                <div className="pt-3 border-t">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Period:</span>
-                        </div>
-                        <span className="font-medium">
-                            {format(addDays(new Date(subscription.dmResetDate), -30), "dd MMM", { locale: id })} -
-                            {format(new Date(subscription.dmResetDate), "dd MMM yyyy", { locale: id })}
-                        </span>
-                    </div>
+                <div className="text-sm text-gray-600">
+                    <p>Usage resets on: {subscription?.dmResetDate ? format(new Date(subscription.dmResetDate), "dd MMM yyyy") : "-"}</p>
                 </div>
 
                 {/* Upgrade Alert */}

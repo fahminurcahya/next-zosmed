@@ -41,7 +41,7 @@ export function useSubscription() {
 
         const accountsUsed = query.data?.user?.integration?.length || 0;
         const dmUsed = formatted.currentDMCount;
-        const aiUsed = 0; // TODO: Get from actual usage tracking
+        const aiUsed = formatted.currentAICount;
 
         return {
             accounts: {
@@ -75,8 +75,7 @@ export function useSubscription() {
 
     const isLimited = useMemo(() => {
         if (!usage) return false;
-        return usage.accounts.percentage >= 100 ||
-            usage.dm.percentage >= 100 ||
+        return usage.dm.percentage >= 100 ||
             usage.ai.percentage >= 100;
     }, [usage]);
 
@@ -207,6 +206,7 @@ export function useSubscriptionActions() {
 
     const createInvoice = api.billing.createInvoice.useMutation({
         onSuccess: (data) => {
+
             // Store invoice data for payment page
             sessionStorage.setItem('xendit_invoice', JSON.stringify(data));
 
@@ -260,10 +260,6 @@ export function useSubscriptionActions() {
 
             case "RESUME":
                 return resume.mutateAsync();
-
-            case "CHANGE_PAYMENT_METHOD":
-                toast.info("Payment method change coming soon");
-                break;
         }
     }, [createInvoice, cancel, resume]);
 
@@ -383,34 +379,6 @@ export function useDiscountValidation(
     };
 }
 
-/**
- * Hook for payment methods
- */
-export function usePaymentMethods() {
-    const query = api.billing.getPaymentMethods.useQuery(undefined, {
-        staleTime: 300000, // Cache for 5 minutes
-    });
-
-    const grouped = useMemo(() => {
-        if (!query.data) return {};
-
-        return query.data.reduce((acc: any, method: any) => {
-            const type = method.type;
-            if (!acc[type]) acc[type] = [];
-            acc[type].push(method);
-            return acc;
-        }, {} as Record<string, typeof query.data>);
-    }, [query.data]);
-
-    return {
-        methods: query.data || [],
-        grouped,
-        isLoading: query.isLoading,
-        isError: query.isError,
-        error: query.error,
-        refetch: query.refetch,
-    };
-}
 
 /**
  * Hook for billing alerts and notifications

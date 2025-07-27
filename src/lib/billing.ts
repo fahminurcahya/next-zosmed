@@ -126,6 +126,7 @@ export function formatSubscription(
         maxDMPerMonth: subscription.maxDMPerMonth,
         maxAIReplyPerMonth: subscription.maxAIReplyPerMonth || 0,
         currentDMCount: subscription.currentDMCount,
+        currentAICount: subscription.currentAICount,
         daysRemaining: subscription.daysRemaining,
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
@@ -236,6 +237,7 @@ export function getPaymentStatusConfig(status: PaymentStatus): {
         FAILED: { label: "Failed", variant: "destructive", icon: "XCircle" },
         EXPIRED: { label: "Expired", variant: "default", icon: "Clock" },
         REFUNDED: { label: "Refunded", variant: "default", icon: "RefreshCw" },
+        ABANDONED: { label: "Abandoned", variant: "default", icon: "XCircle" },
     };
 
     return config[status] || config.PENDING;
@@ -270,26 +272,50 @@ export function isUsageNearLimit(used: number, limit: number, threshold = 80): b
 }
 
 // Plan comparison helpers
+// export function comparePlans(
+//     plans: FormattedPlan[]
+// ): Array<{ feature: string; availability: Record<string, boolean> }> {
+//     const allFeatures = new Set<string>();
+
+//     plans.forEach(plan => {
+//         plan.features.included.forEach(f => allFeatures.add(f));
+//         plan.features.notIncluded.forEach(f => allFeatures.add(f));
+//     });
+
+//     return Array.from(allFeatures).map(feature => {
+//         const availability: Record<string, boolean> = {};
+
+//         plans.forEach(plan => {
+//             availability[plan.id] = plan.features.included.includes(feature);
+//         });
+
+//         return { feature, availability };
+//     });
+// }
+
 export function comparePlans(
     plans: FormattedPlan[]
 ): Array<{ feature: string; availability: Record<string, boolean> }> {
     const allFeatures = new Set<string>();
 
-    plans.forEach(plan => {
+    // Gabungkan semua fitur (included dan notIncluded)
+    for (const plan of plans) {
         plan.features.included.forEach(f => allFeatures.add(f));
         plan.features.notIncluded.forEach(f => allFeatures.add(f));
-    });
+    }
 
+    // Buat list fitur dengan mapping ketersediaan pada tiap plan
     return Array.from(allFeatures).map(feature => {
         const availability: Record<string, boolean> = {};
 
-        plans.forEach(plan => {
+        for (const plan of plans) {
             availability[plan.id] = plan.features.included.includes(feature);
-        });
+        }
 
         return { feature, availability };
     });
 }
+
 
 // Export all types
 export type * from "@/types/billing.type";

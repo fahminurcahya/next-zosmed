@@ -24,17 +24,6 @@ const BillingSuccess: NextPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    React.useEffect(() => {
-        const external_id = searchParams.get('external_id');
-        const invoice_id = searchParams.get('invoice_id');
-        const payment_method = searchParams.get('payment_method');
-        const amount = searchParams.get('amount');
-        const plan_id = searchParams.get('plan_id');
-        const discount_code = searchParams.get('discount_code');
-
-        console.log({ external_id, invoice_id });
-    }, [searchParams]);
-
     // Ambil semua possible parameters dari URL
     const external_id = searchParams.get('external_id') || searchParams.get('id');
     const invoice_id = searchParams.get('invoice_id');

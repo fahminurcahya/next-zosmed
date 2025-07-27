@@ -14,12 +14,12 @@ const seedDefaultPlans = [
         bgColor: "bg-gray-50",
         borderColor: "border-gray-200",
         maxAccounts: 1,
-        maxDMPerMonth: 100,
+        maxDMPerMonth: 50,
         maxAIReplyPerMonth: 20,
         features: {
             included: [
                 "1 akun Instagram",
-                "100 auto-reply per bulan",
+                "50 auto-reply per bulan",
                 "20 AI-powered reply",
                 "Template Workflow",
             ],

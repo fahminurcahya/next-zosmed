@@ -23,6 +23,22 @@ import {
 import { toast } from "sonner";
 import { addDays } from "date-fns";
 
+export interface RecurringStatus {
+    id: string;
+    status: 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'PENDING_ACTIVATION';
+    plan: any;
+    amount: number;
+    discountAmount?: number;
+    paymentMethod?: string;
+    activatedAt?: Date;
+    nextChargeDate?: Date;
+}
+
+export interface RecurringAction {
+    type: 'ENABLE' | 'DISABLE' | 'PAUSE' | 'RESUME';
+    planId?: string;
+}
+
 /**
  * Hook for current subscription and usage
  */
@@ -87,6 +103,61 @@ export function useSubscription() {
         isError: query.isError,
         error: query.error,
         refetch: query.refetch,
+    };
+}
+
+/**
+ * Hook for recurring subscription status
+ */
+export function useRecurringStatus() {
+    const query = api.billing.getRecurringStatus.useQuery();
+    const hasActiveQuery = api.billing.hasActiveRecurring.useQuery();
+
+    return {
+        recurringStatus: query.data,
+        hasActiveRecurring: hasActiveQuery.data?.hasActive || false,
+        isLoading: query.isLoading || hasActiveQuery.isLoading,
+        isError: query.isError || hasActiveQuery.isError,
+        error: query.error || hasActiveQuery.error,
+        refetch: () => {
+            query.refetch();
+            hasActiveQuery.refetch();
+        }
+    };
+}
+
+/**
+ * Hook for recurring history
+ */
+export function useRecurringHistory(limit = 10) {
+    const [page, setPage] = useState(0);
+
+    const query = api.billing.getRecurringHistory.useQuery({
+        limit,
+        offset: page * limit,
+    });
+
+    const loadMore = useCallback(() => {
+        if (query.data?.hasMore) {
+            setPage(prev => prev + 1);
+        }
+    }, [query.data?.hasMore]);
+
+    const refresh = useCallback(() => {
+        setPage(0);
+        query.refetch();
+    }, [query]);
+
+    return {
+        cycles: query.data?.cycles || [],
+        total: query.data?.total || 0,
+        hasMore: query.data?.hasMore || false,
+        isLoading: query.isLoading,
+        isError: query.isError,
+        error: query.error,
+        page,
+        loadMore,
+        refresh,
     };
 }
 
@@ -203,22 +274,32 @@ export function useUpgradePlans() {
 export function useSubscriptionActions() {
     const router = useRouter();
     const utils = api.useUtils();
+    const [isEnablingRecurring, setIsEnablingRecurring] = useState(false);
 
     const createInvoice = api.billing.createInvoice.useMutation({
         onSuccess: (data) => {
-
-            // Store invoice data for payment page
-            sessionStorage.setItem('xendit_invoice', JSON.stringify(data));
-
-            // Redirect to Xendit payment
-            if (data.invoiceUrl) {
-                window.location.href = data.invoiceUrl;
+            if (data.type === 'recurring') {
+                sessionStorage.setItem('xendit_recurring', JSON.stringify(data));
+                if (data.activationUrl) {
+                    window.location.href = data.activationUrl;
+                } else {
+                    toast.error("Failed to get activation URL");
+                }
+            } else {
+                sessionStorage.setItem('xendit_invoice', JSON.stringify(data));
+                if ('invoiceUrl' in data && data.invoiceUrl) {
+                    window.location.href = data.invoiceUrl;
+                } else {
+                    toast.error("Failed to get payment URL");
+                }
             }
         },
         onError: (error) => {
-            toast.error(error.message || "Failed to create invoice");
+            toast.error(error.message || "Failed to create payment");
+            setIsEnablingRecurring(false);
         },
     });
+
 
     const cancel = api.billing.cancelSubscription.useMutation({
         onSuccess: (data) => {
@@ -228,11 +309,13 @@ export function useSubscriptionActions() {
                     : "Subscription cancelled successfully"
             );
             utils.billing.getCurrentSubscription.invalidate();
+            utils.billing.getRecurringStatus.invalidate();
         },
         onError: (error) => {
             toast.error(error.message || "Failed to cancel subscription");
         },
     });
+
 
     const resume = api.billing.resumeSubscription.useMutation({
         onSuccess: () => {
@@ -244,14 +327,45 @@ export function useSubscriptionActions() {
         },
     });
 
-    const handleAction = useCallback(async (action: SubscriptionAction) => {
+    const pauseRecurring = api.billing.pauseRecurring.useMutation({
+        onSuccess: (data) => {
+            toast.success(data.message || "Auto-renewal paused successfully");
+            utils.billing.getRecurringStatus.invalidate();
+            utils.billing.hasActiveRecurring.invalidate();
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to pause auto-renewal");
+        },
+    });
+
+    const resumeRecurring = api.billing.resumeRecurring.useMutation({
+        onSuccess: (data) => {
+            if (data.activationUrl) {
+                toast.success("Redirecting to complete setup...");
+                window.location.href = data.activationUrl;
+            } else {
+                toast.success(data.message || "Auto-renewal resumed successfully");
+            }
+            utils.billing.getRecurringStatus.invalidate();
+            utils.billing.hasActiveRecurring.invalidate();
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to resume auto-renewal");
+        },
+    });
+
+    const handleAction = useCallback(async (action: SubscriptionAction | RecurringAction) => {
         switch (action.type) {
             case "UPGRADE":
-                return createInvoice.mutateAsync({
-                    planId: action.planId,
-                    discountCode: action.discountCode,
-                });
+                const upgradeAction = action as SubscriptionAction & { type: "UPGRADE" };
+                const enableRecurring = localStorage.getItem('preferRecurring') === 'true';
+                setIsEnablingRecurring(enableRecurring);
 
+                return createInvoice.mutateAsync({
+                    planId: upgradeAction.planId,
+                    discountCode: upgradeAction.discountCode,
+                    enableRecurring,
+                });
             case "CANCEL":
                 return cancel.mutateAsync({
                     reason: action.reason,
@@ -260,20 +374,93 @@ export function useSubscriptionActions() {
 
             case "RESUME":
                 return resume.mutateAsync();
+            case "ENABLE":
+                const enableAction = action as RecurringAction & { type: "ENABLE" };
+                if (enableAction.planId) {
+                    setIsEnablingRecurring(true);
+                    return createInvoice.mutateAsync({
+                        planId: enableAction.planId,
+                        enableRecurring: true,
+                        isReplace: true
+                    });
+                }
+                break;
+
+            case "DISABLE":
+            case "PAUSE":
+                return pauseRecurring.mutateAsync();
         }
-    }, [createInvoice, cancel, resume]);
+    }, [createInvoice, cancel, resume, pauseRecurring, resumeRecurring]);
+
+    const handleRecurringToggle = useCallback(async (enabled: boolean, planId?: string) => {
+        if (enabled && planId) {
+            return handleAction({ type: "ENABLE", planId });
+        } else if (!enabled) {
+            return handleAction({ type: "PAUSE" });
+        }
+    }, [handleAction]);
 
     return {
         handleAction,
+        handleRecurringToggle,
         createInvoice: createInvoice.mutateAsync,
         cancel: cancel.mutateAsync,
         resume: resume.mutateAsync,
+        pauseRecurring: pauseRecurring.mutateAsync,
+        resumeRecurring: resumeRecurring.mutateAsync,
         isProcessing:
             createInvoice.isPending ||
             cancel.isPending ||
-            resume.isPending,
+            resume.isPending ||
+            pauseRecurring.isPending ||
+            resumeRecurring.isPending ||
+            isEnablingRecurring,
     };
 }
+
+/**
+ * Hook for checking recurring eligibility
+ */
+export function useRecurringEligibility() {
+    const { subscription } = useSubscription();
+    const { recurringStatus } = useRecurringStatus();
+
+    const eligibility = useMemo(() => {
+        if (!subscription) {
+            return {
+                canEnableRecurring: false,
+                reason: "No active subscription",
+            };
+        }
+        if (subscription.plan === "FREE") {
+            return {
+                canEnableRecurring: false,
+                reason: "Recurring not available for free plan",
+            };
+        }
+        if (recurringStatus?.status === "ACTIVE") {
+            return {
+                canEnableRecurring: false,
+                reason: "Recurring is already active",
+                isActive: true,
+            };
+        }
+        if (recurringStatus?.status === "PENDING_ACTIVATION") {
+            return {
+                canEnableRecurring: false,
+                reason: "Recurring activation is pending",
+                isPending: true,
+            };
+        }
+        return {
+            canEnableRecurring: true,
+            reason: null,
+        };
+    }, [subscription, recurringStatus]);
+
+    return eligibility;
+}
+
 
 /**
  * Hook for payment history
@@ -334,6 +521,31 @@ export function usePaymentHistory(filter?: PaymentHistoryFilter) {
         refresh,
     };
 }
+
+/**
+ * Hook to persist recurring preference
+ */
+export function useRecurringPreference() {
+    const [preferRecurring, setPreferRecurring] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('preferRecurring') === 'true';
+        }
+        return false;
+    });
+
+    const updatePreference = useCallback((value: boolean) => {
+        setPreferRecurring(value);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('preferRecurring', value.toString());
+        }
+    }, []);
+
+    return {
+        preferRecurring,
+        updatePreference,
+    };
+}
+
 
 /**
  * Hook for discount validation

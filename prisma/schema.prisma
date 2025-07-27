@@ -63,6 +63,8 @@ model User {
   usageTracking         UsageTracking[]
   discountUsage         DiscountUsage[]
   payment               Payment[]
+  recurringPlan         RecurringPlan[]
+  paymentMethod         PaymentMethod[]
 
   @@unique([email])
   @@map("user")
@@ -178,6 +180,13 @@ model Subscription {
   pricingPlan   PricingPlan? @relation(fields: [pricingPlanId], references: [id])
   pricingPlanId String?      @map("pricing_plan_id")
   customPlan    Json?        @map("custom_plan") // For custom/legacy plans
+
+  isRecurring     Boolean?       @default(false) @map("is_recurring")
+  recurringPlanId String?        @unique @map("recurring_plan_id")
+  recurringPlan   RecurringPlan?
+  lastPaymentAt   DateTime?      @map("last_payment_at")
+
+  metadata Json?
 
   @@map("subscription")
   @@schema("zosmed")
@@ -611,9 +620,10 @@ model PricingPlan {
   sortOrder          Int            @default(0) @map("sort_order")
   subscriptions      Subscription[]
 
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  payment   Payment[]
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  payment        Payment[]
+  recurringPlans RecurringPlan[]
 
   @@index([isActive, sortOrder])
   @@map("pricing_plan")
@@ -650,6 +660,8 @@ model Payment {
   paidAt            DateTime?     @map("paid_at")
   expiredAt         DateTime?     @map("expired_at")
   metadata          Json?
+  recurringCycleId  String?       @map("recurring_cycle_id")
+  isRecurring       Boolean       @default(false) @map("is_recurring")
 
   @@index([userId, status])
   @@index([externalId])
@@ -665,5 +677,76 @@ enum PaymentStatus {
   REFUNDED
   ABANDONED
 
+  @@schema("zosmed")
+}
+
+model RecurringPlan {
+  id               String      @id @default(cuid())
+  userId           String      @map("user_id")
+  user             User        @relation(fields: [userId], references: [id])
+  pricingPlanId    String      @map("pricing_plan_id")
+  pricingPlan      PricingPlan @relation(fields: [pricingPlanId], references: [id])
+  xenditPlanId     String      @unique @map("xendit_plan_id")
+  xenditCustomerId String      @map("xendit_customer_id")
+  paymentMethodId  String?     @map("payment_method_id")
+  status           String // PENDING_ACTIVATION, CREATED, ACTIVE, PAUSED, INACTIVE
+  amount           Float
+  discountCode     String?     @map("discount_code")
+  discountAmount   Float?      @map("discount_amount")
+  activatedAt      DateTime?   @map("activated_at")
+  pausedAt         DateTime?   @map("paused_at")
+  deactivatedAt    DateTime?   @map("deactivated_at")
+  metadata         Json?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String?       @unique @map("subscription_id") @db.Uuid
+
+  @@index([userId, status])
+  @@map("recurring_plan")
+  @@schema("zosmed")
+}
+
+model RecurringCycle {
+  id            String    @id @default(cuid())
+  cycleId       String    @unique @map("cycle_id")
+  planId        String    @map("plan_id")
+  amount        Float
+  currency      String    @default("IDR")
+  status        String // SCHEDULED, PROCESSING, SUCCEEDED, FAILED
+  scheduledAt   DateTime  @map("scheduled_at")
+  succeededAt   DateTime? @map("succeeded_at")
+  failedAt      DateTime? @map("failed_at")
+  failureReason String?   @map("failure_reason")
+  cycleNumber   Int       @map("cycle_number")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([planId, status])
+  @@map("recurring_cycle")
+  @@schema("zosmed")
+}
+
+model PaymentMethod {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id])
+  xenditPaymentMethodId String    @unique @map("xendit_payment_method_id")
+  type                  String // CARD, EWALLET, DIRECT_DEBIT
+  channelCode           String?   @map("channel_code") // OVO, DANA, BCA, etc
+  status                String // ACTIVE, INACTIVE, PENDING_ACTIVATION, EXPIRED, FAILED
+  isDefault             Boolean   @default(false) @map("is_default")
+  lastUsedAt            DateTime? @map("last_used_at")
+  activatedAt           DateTime? @map("activated_at")
+  expiredAt             DateTime? @map("expired_at")
+  failureCode           String?   @map("failure_code")
+  metadata              Json?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([xenditPaymentMethodId])
+  @@map("payment_method")
   @@schema("zosmed")
 }

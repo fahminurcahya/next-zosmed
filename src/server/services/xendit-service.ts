@@ -5,6 +5,8 @@ import { addMonths, addDays } from "date-fns";
 import type { CreateInvoiceRequest } from 'xendit-node/invoice/models';
 import { db } from '../db';
 import { da } from 'date-fns/locale';
+import { xenditRecurringService } from './xendit-recurring-service';
+import { xenditPaymentMethodService } from './xendit-payment-method-service';
 
 // Initialize Xendit client
 const xendit = new Xendit({
@@ -17,6 +19,7 @@ const { PaymentMethod: paymentMethodClient } = xendit;
 const { Customer: customerClient } = xendit;
 const { Balance: balanceClient } = xendit;
 const { Payout: payoutClient } = xendit;
+
 
 // Types
 export interface CreateInvoiceParams {
@@ -53,6 +56,7 @@ export interface XenditWebhookEvent {
     created: string;
     businessId: string;
     statusEvent: string;
+    event: string;
     data: any;
 }
 
@@ -388,21 +392,30 @@ export const xenditService = {
      * Handle webhook callback
      */
     async handleWebhook(event: XenditWebhookEvent) {
-        const { statusEvent: eventType, data } = event;
+        const { statusEvent: eventStatus, data, event: eventType } = event;
 
-        switch (eventType) {
+        // Handle payment method events
+        if (event.event?.startsWith('payment_method.')) {
+            await xenditPaymentMethodService.handleWebhook({
+                event: eventType,
+                data: data
+            });
+        }
+
+        if (eventType.startsWith('recurring.')) {
+            return xenditRecurringService.handleWebhook({
+                event: eventType,
+                data
+            });
+        }
+
+        switch (eventStatus) {
             case "PAID":
                 return this.handleInvoicePaid(data);
             case "EXPIRED":
                 return this.handleInvoiceExpired(data);
             case "FAILED":
                 return this.handlePaymentFailed(data);
-            case "recurring.plan.created":
-                return this.handleRecurringCreated(data);
-            case "recurring.cycle.succeeded":
-                return this.handleRecurringCycleSucceeded(data);
-            case "recurring.plan.inactivated":
-                return this.handleRecurringInactivated(data);
             case "payouts.completed":
                 return this.handlePayoutCompleted(data);
             case "payouts.failed":
@@ -519,50 +532,6 @@ export const xenditService = {
                 },
             },
         });
-    },
-
-    /**
-     * Handle recurring plan created
-     */
-    async handleRecurringCreated(data: any) {
-        console.log("Recurring plan created:", data.id);
-        // Update subscription to recurring
-    },
-
-    /**
-     * Handle successful recurring cycle
-     */
-    async handleRecurringCycleSucceeded(data: any) {
-        console.log("Recurring cycle succeeded:", data.id);
-
-        const { plan_id, cycle_id } = data;
-        const metadata = data.metadata || {};
-
-        if (metadata.userId && metadata.planId) {
-            // Extend subscription
-            const subscription = await db.subscription.findUnique({
-                where: { userId: metadata.userId },
-            });
-
-            if (subscription && subscription.currentPeriodEnd) {
-                const newEndDate = addMonths(subscription.currentPeriodEnd, 1);
-
-                await db.subscription.update({
-                    where: { id: subscription.id },
-                    data: {
-                        currentPeriodEnd: newEndDate,
-                    },
-                });
-            }
-        }
-    },
-
-    /**
-     * Handle recurring plan deactivated
-     */
-    async handleRecurringInactivated(data: any) {
-        console.log("Recurring plan deactivated:", data.id);
-        // Cancel subscription
     },
 
     /**

@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import type { NextPage } from 'next';
 import { api } from '@/trpc/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSubscriptionActions } from '@/hooks/billing-hook';
 
 const BillingFailed: NextPage = () => {
     const router = useRouter();
@@ -29,6 +30,8 @@ const BillingFailed: NextPage = () => {
 
     const [retryCount, setRetryCount] = useState(0);
     const [paymentDetails, setPaymentDetails] = useState<any>(null);
+    const { handleAction, isProcessing: actionProcessing } = useSubscriptionActions();
+
 
     // Get payment details
     const { data: payment, isLoading } = api.billing.getPaymentByExternalId.useQuery(
@@ -45,18 +48,8 @@ const BillingFailed: NextPage = () => {
         }
     }, [payment]);
 
-    // Create new invoice for retry
-    const createInvoice = api.billing.createInvoice.useMutation({
-        onSuccess: (data) => {
-            if (data.invoiceUrl) {
-                window.location.href = data.invoiceUrl;
-            }
-        },
-        onError: (error) => {
-            toast.error('Failed to create new payment. Please try again.');
-            console.error('Retry payment error:', error);
-        }
-    });
+
+
 
     const formatCurrency = (amount: number | string) => {
         const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -118,12 +111,12 @@ const BillingFailed: NextPage = () => {
             toast.error('Unable to retry payment. Plan information missing.');
             return;
         }
-
         setRetryCount(prev => prev + 1);
-        createInvoice.mutate({
+        handleAction({
+            type: "UPGRADE",
             planId: paymentDetails.planId,
-            discountCode: paymentDetails.discountCode,
-        });
+            discountCode: paymentDetails.discountCode || undefined,
+        })
     };
 
     const handleContactSupport = () => {
@@ -134,7 +127,7 @@ const BillingFailed: NextPage = () => {
     };
 
     const failureInfo = getFailureReason(
-        paymentDetails?.metadata?.failureCode ||
+        paymentDetails?.status ||
         failure_reason as string ||
         'UNKNOWN'
     );
@@ -274,11 +267,11 @@ const BillingFailed: NextPage = () => {
                     <div className="flex flex-col sm:flex-row gap-4">
                         <Button
                             onClick={handleRetryPayment}
-                            disabled={createInvoice.isPending || retryCount >= 3}
+                            disabled={actionProcessing || retryCount >= 3}
                             className="flex items-center gap-2"
                         >
-                            <RefreshCw className={`w-4 h-4 ${createInvoice.isPending ? 'animate-spin' : ''}`} />
-                            {createInvoice.isPending ? 'Creating Payment...' : 'Try Again'}
+                            <RefreshCw className={`w-4 h-4 ${actionProcessing ? 'animate-spin' : ''}`} />
+                            {actionProcessing ? 'Creating Payment...' : 'Try Again'}
                         </Button>
 
                         <Button

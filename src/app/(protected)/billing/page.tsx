@@ -53,7 +53,10 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UsageCard } from "./_components";
-import { usePaymentHistory, useSubscription, useSubscriptionActions } from "@/hooks/billing-hook";
+import { usePaymentHistory, useRecurringHistory, useSubscription, useSubscriptionActions } from "@/hooks/billing-hook";
+import RecurringStatusCard from "./_components/recurring-status-card";
+import EnableRecurringDialog from "./_components/enable-recurring-dialog";
+import { boolean } from "zod";
 
 type SubscriptionAction =
     | { type: "CANCEL"; reason?: string; feedback?: string }
@@ -65,10 +68,13 @@ export default function BillingDashboardPage() {
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [cancelReason, setCancelReason] = useState("");
     const [cancelFeedback, setCancelFeedback] = useState("");
+    const [activeTab, setActiveTab] = useState<"payments" | "recurring">("payments");
+
 
     const { subscription, usage, isLoading: subLoading } = useSubscription();
-
     const { handleAction, isProcessing } = useSubscriptionActions();
+    const [showEnableDialog, setShowEnableDialog] = useState(false);
+
 
     const {
         payments,
@@ -80,6 +86,15 @@ export default function BillingDashboardPage() {
         refresh: refreshPayments,
         page
     } = usePaymentHistory({ limit: 10 });
+
+    const {
+        cycles,
+        total: recurringTotal,
+        hasMore: hasMoreCycles,
+        isLoading: cyclesLoading,
+        loadMore: loadMoreCycles,
+        refresh: refreshCycles,
+    } = useRecurringHistory(10);
 
     const handleCancelSubscription = async () => {
         try {
@@ -249,6 +264,8 @@ export default function BillingDashboardPage() {
 
             </div>
 
+            <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+
             {/* Payment Statistics */}
             {stats && (
                 <div className="grid gap-4 md:grid-cols-3">
@@ -297,152 +314,175 @@ export default function BillingDashboardPage() {
                 </div>
             )}
 
-            {/* Payment History */}
+            {/* Payment History with Tabs */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle>Payment History</CardTitle>
-                            <CardDescription>Your recent transactions</CardDescription>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={refreshPayments}
-                            disabled={paymentsLoading}
-                        >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${paymentsLoading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {paymentsError ? (
-                        <div className="text-center py-8">
-                            <p className="text-red-600 mb-2">Failed to load payment history</p>
-                            <Button variant="outline" onClick={refreshPayments}>
-                                Try Again
+                    <CardTitle className="flex items-center justify-between">
+                        <span>Payment History</span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant={activeTab === "payments" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setActiveTab("payments")}
+                            >
+                                One-time Payments
+                            </Button>
+                            <Button
+                                variant={activeTab === "recurring" ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setActiveTab("recurring")}
+                            >
+                                Recurring History
                             </Button>
                         </div>
-                    ) : payments.length > 0 ? (
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {activeTab === "payments" ? (
+                        // One-time Payments Table
                         <>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Invoice</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {payments.map((payment) => (
-                                        <TableRow key={payment.id}>
-                                            <TableCell>
-                                                {format(new Date(payment.createdAt), "dd MMM yyyy", { locale: id })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium">{payment.planName} Plan</p>
-                                                    {payment.discountCode && (
-                                                        <p className="text-sm text-gray-500">
-                                                            Discount: {payment.discountCode}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium">
-                                                        Rp {payment.amount.toLocaleString("id-ID")}
-                                                    </p>
-                                                    {payment.discountAmount && (
-                                                        <p className="text-sm text-green-600">
-                                                            -Rp {payment.discountAmount.toLocaleString("id-ID")}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                                            <TableCell>
-                                                {payment.invoiceUrl && payment.status === "SUCCESS" && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => window.open(payment.invoiceUrl!, "_blank")}
-                                                    >
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                                {payment.status === "PENDING" && (
-                                                    <div className="flex gap-2">
-                                                        {payment.invoiceUrl && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => window.open(payment.invoiceUrl!, "_blank")}
-                                                                className="text-blue-600 hover:text-blue-700"
-                                                            >
-                                                                <CreditCard className="h-4 w-4 mr-1" />
-                                                                Continue Payment
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </TableCell>
+                            {payments.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Plan</TableHead>
+                                            <TableHead>Amount</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-
-                            {/* Load More Button */}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {payments.map((payment) => (
+                                            <TableRow key={payment.id}>
+                                                <TableCell>
+                                                    {format(payment.createdAt, "dd MMM yyyy")}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {payment.planName || "N/A"}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {new Intl.NumberFormat("id-ID", {
+                                                        style: "currency",
+                                                        currency: "IDR",
+                                                        minimumFractionDigits: 0,
+                                                    }).format(payment.amount)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {getStatusBadge(payment.status)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {payment.invoiceUrl && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                window.open(
+                                                                    payment.invoiceUrl!,
+                                                                    "_blank"
+                                                                )
+                                                            }
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <p className="text-center text-gray-600 py-8">
+                                    No payment history found
+                                </p>
+                            )}
                             {hasMore && (
-                                <div className="flex justify-center mt-4">
+                                <div className="mt-4 text-center">
                                     <Button
                                         variant="outline"
                                         onClick={loadMore}
                                         disabled={paymentsLoading}
                                     >
                                         {paymentsLoading ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Loading...
-                                            </>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : (
-                                            <>
-                                                <MoreHorizontal className="h-4 w-4 mr-2" />
-                                                Load More
-                                            </>
+                                            "Load More"
                                         )}
                                     </Button>
                                 </div>
                             )}
-
-                            {/* Pagination Info */}
-                            <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
-                                <span>
-                                    Showing {payments.length} payments
-                                    {stats && ` of ${stats.count} total`}
-                                </span>
-                                {page > 0 && (
-                                    <span>Page {page + 1}</span>
-                                )}
-                            </div>
                         </>
                     ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            {paymentsLoading ? (
-                                <div className="flex justify-center">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                </div>
+                        // Recurring Cycles Table
+                        <>
+                            {cycles.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Scheduled Date</TableHead>
+                                            <TableHead>Cycle #</TableHead>
+                                            <TableHead>Amount</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Processed</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {cycles.map((cycle) => (
+                                            <TableRow key={cycle.cycleId}>
+                                                <TableCell>
+                                                    {format(new Date(cycle.scheduledAt), "dd MMM yyyy")}
+                                                </TableCell>
+                                                <TableCell>
+                                                    #{cycle.cycleNumber}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {new Intl.NumberFormat("id-ID", {
+                                                        style: "currency",
+                                                        currency: "IDR",
+                                                        minimumFractionDigits: 0,
+                                                    }).format(cycle.amount)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {getStatusBadge(
+                                                        cycle.status === 'SUCCEEDED' ? 'SUCCESS' : cycle.status
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {cycle.succeededAt && (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {format(new Date(cycle.succeededAt), "dd MMM")}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             ) : (
-                                "No payment history yet"
+                                <p className="text-center text-gray-600 py-8">
+                                    No recurring payment history found
+                                </p>
                             )}
-                        </div>
+                            {hasMoreCycles && (
+                                <div className="mt-4 text-center">
+                                    <Button
+                                        variant="outline"
+                                        onClick={loadMoreCycles}
+                                        disabled={cyclesLoading}
+                                    >
+                                        {cyclesLoading ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            "Load More"
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>
+
 
             {/* Cancel Subscription Dialog */}
             <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -507,6 +547,10 @@ export default function BillingDashboardPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <EnableRecurringDialog
+                open={showEnableDialog}
+                onOpenChange={setShowEnableDialog}
+            />
         </div>
     );
 }

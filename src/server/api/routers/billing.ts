@@ -5,6 +5,7 @@ import { xenditService } from "@/server/services/xendit-service";
 import { discountService } from "@/server/services/discount-service";
 import { FEE } from "@/constants/integration";
 import type { PaymentWithPlan } from "@/types/billing.type";
+import { xenditRecurringService } from "@/server/services/xendit-recurring-service";
 
 export const billingRouter = createTRPCRouter({
     getCurrentSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -63,10 +64,24 @@ export const billingRouter = createTRPCRouter({
             z.object({
                 planId: z.string(),
                 discountCode: z.string().optional(),
-                paymentMethods: z.array(z.string()).optional(),
+                enableRecurring: z.boolean().default(false),
+                isReplace: z.boolean().default(false)
             })
         )
         .mutation(async ({ ctx, input }) => {
+
+            const user = await ctx.db.user.findUnique({
+                where: { id: ctx.session.user.id },
+                select: { id: true, email: true, name: true },
+            });
+
+            if (!user || !user.email) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "User email is required",
+                });
+            }
+
             const plan = await ctx.db.pricingPlan.findUnique({
                 where: { id: input.planId },
             });
@@ -83,11 +98,13 @@ export const billingRouter = createTRPCRouter({
                 where: { userId: ctx.session.user.id },
             });
 
-            if (currentSub?.pricingPlanId === input.planId) {
-                throw new TRPCError({
-                    code: "BAD_REQUEST",
-                    message: "You are already on this plan",
-                });
+            if (!input.isReplace) {
+                if (currentSub?.pricingPlanId === input.planId) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "You are already on this plan",
+                    });
+                }
             }
 
             let finalAmount = plan.price + FEE;
@@ -105,21 +122,216 @@ export const billingRouter = createTRPCRouter({
                 discountAmount = discountResult.discountAmount;
             }
 
-            console.log("finalAmount")
-            console.log(finalAmount)
+            if (input.enableRecurring) {
+                // Create or get Xendit customer
+                const customer = await xenditService.createOrGetCustomer({
+                    referenceId: user.id,
+                    givenNames: user.name || "Customer",
+                    email: user.email,
+                });
 
-            // Create invoice
-            const invoice = await xenditService.createInvoice({
-                userId: ctx.session.user.id,
-                planId: plan.id,
-                amount: finalAmount,
-                discountCode: input.discountCode,
-                discountAmount,
-                paymentMethods: input.paymentMethods,
-                description: `Upgrade to ${plan.displayName} Plan`,
+                if (!customer) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Failed Get Customer",
+                    });
+                }
+                const recurringResult = await xenditRecurringService.createSubscriptionPlan({
+                    userId: user.id,
+                    planId: plan.id,
+                    customerId: customer.id,
+                    amount: process.env.NODE_ENV === "development" ? 13579 : finalAmount,
+                    period: plan.period,
+                    discountCode: input.discountCode,
+                    discountAmount,
+                });
+
+                return {
+                    type: "recurring",
+                    planId: recurringResult.planId,
+                    externalId: recurringResult.externalId,
+                    activationUrl: recurringResult.activationUrl,
+                    status: recurringResult.status,
+                };
+
+            } else {
+                // Create invoice
+                const invoice = await xenditService.createInvoice({
+                    userId: ctx.session.user.id,
+                    planId: plan.id,
+                    amount: finalAmount,
+                    discountCode: input.discountCode,
+                    discountAmount,
+                    description: `Upgrade to ${plan.displayName} Plan`,
+                });
+
+                return {
+                    type: "invoice",
+                    ...invoice,
+                };
+            }
+        }),
+
+    getRecurringStatus: protectedProcedure
+        .query(async ({ ctx }) => {
+            const recurringPlan = await ctx.db.recurringPlan.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    status: { in: ['ACTIVE', 'PAUSED', 'PENDING_ACTIVATION'] }
+                },
+                include: {
+                    pricingPlan: true,
+                }
             });
 
-            return invoice;
+            if (!recurringPlan) {
+                return null;
+            }
+
+            // Get next charge date from Xendit
+            let nextChargeDate = null;
+            try {
+                const xenditPlan = await xenditRecurringService.getPlan(recurringPlan.xenditPlanId);
+                const cycles = await xenditRecurringService.getPlanCycles(recurringPlan.xenditPlanId);
+
+                // Find next scheduled cycle
+                const nextCycle = cycles.data?.find((cycle: any) =>
+                    cycle.status === 'SCHEDULED'
+                );
+
+                if (nextCycle) {
+                    nextChargeDate = new Date(nextCycle.scheduled_timestamp);
+                }
+            } catch (error) {
+                console.error('Failed to get Xendit plan details:', error);
+            }
+
+            // recurringPlan.metadata bisa berupa object plan dari Xendit, bukan array actions
+            // Ambil actions dari metadata jika ada, lalu cari activation action
+            let activationAction = null;
+            if (recurringPlan.metadata && typeof recurringPlan.metadata === 'object' && recurringPlan.metadata !== null) {
+                const actions = (recurringPlan.metadata as any).actions;
+                if (Array.isArray(actions)) {
+                    activationAction = actions.find(
+                        (action: any) => action.action === 'AUTH' || action.action === 'PAYMENT_METHOD_BINDING'
+                    );
+                }
+            }
+
+
+            return {
+                id: recurringPlan.id,
+                status: recurringPlan.status,
+                plan: recurringPlan.pricingPlan,
+                amount: recurringPlan.amount,
+                discountAmount: recurringPlan.discountAmount,
+                paymentMethod: recurringPlan.paymentMethodId,
+                activatedAt: recurringPlan.activatedAt,
+                activationUrl: activationAction?.url,
+                nextChargeDate,
+            };
+        }),
+
+    pauseRecurring: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            const recurringPlan = await ctx.db.recurringPlan.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            if (!recurringPlan) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "No active recurring plan found"
+                });
+            }
+
+            // Pause in Xendit
+            await xenditRecurringService.pausePlan(recurringPlan.xenditPlanId);
+
+            // Update subscription
+            await ctx.db.subscription.update({
+                where: { userId: ctx.session.user.id },
+                data: {
+                    cancelAtPeriodEnd: true
+                }
+            });
+
+            return {
+                success: true,
+                message: "Recurring subscription paused successfully"
+            };
+        }),
+
+    resumeRecurring: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            const result = await xenditRecurringService.resumePlan(ctx.session.user.id);
+
+            return {
+                success: true,
+                message: "Please complete payment method setup to resume your subscription",
+                activationUrl: result.activationUrl
+            };
+        }),
+
+    // Get recurring history
+    getRecurringHistory: protectedProcedure
+        .input(z.object({
+            limit: z.number().min(1).max(100).default(10),
+            offset: z.number().min(0).default(0),
+        }))
+        .query(async ({ ctx, input }) => {
+            const [cycles, total] = await Promise.all([
+                ctx.db.recurringCycle.findMany({
+                    where: {
+                        planId: {
+                            in: await ctx.db.recurringPlan
+                                .findMany({
+                                    where: { userId: ctx.session.user.id },
+                                    select: { xenditPlanId: true }
+                                })
+                                .then(plans => plans.map(p => p.xenditPlanId))
+                        }
+                    },
+                    orderBy: { scheduledAt: 'desc' },
+                    take: input.limit,
+                    skip: input.offset,
+                }),
+                ctx.db.recurringCycle.count({
+                    where: {
+                        planId: {
+                            in: await ctx.db.recurringPlan
+                                .findMany({
+                                    where: { userId: ctx.session.user.id },
+                                    select: { xenditPlanId: true }
+                                })
+                                .then(plans => plans.map(p => p.xenditPlanId))
+                        }
+                    }
+                })
+            ]);
+
+            return {
+                cycles,
+                total,
+                hasMore: input.offset + input.limit < total
+            };
+        }),
+    hasActiveRecurring: protectedProcedure
+        .query(async ({ ctx }) => {
+            const activeRecurring = await ctx.db.recurringPlan.findFirst({
+                where: {
+                    userId: ctx.session.user.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            return {
+                hasActive: !!activeRecurring,
+                planId: activeRecurring?.xenditPlanId
+            };
         }),
 
     // Get payment history

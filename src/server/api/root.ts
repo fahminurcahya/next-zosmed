@@ -14,6 +14,7 @@ import { plansRouter } from "./routers/plans";
 import { billingRouter } from "./routers/billing";
 import { planAdminRouter } from "./routers/plan-admin";
 import { onboardingRouter } from "./routers/onboarding";
+import { paymentMethodRouter } from "./routers/payment-method";
 
 /**
  * This is the primary router for your server.
@@ -35,7 +36,8 @@ export const appRouter = createTRPCRouter({
   planAdmin: planAdminRouter,
   plans: plansRouter,
   billing: billingRouter,
-  onboarding: onboardingRouter
+  onboarding: onboardingRouter,
+  paymentMethod: paymentMethodRouter,
 });
 
 // export type definition of API

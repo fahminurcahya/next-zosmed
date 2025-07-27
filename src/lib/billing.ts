@@ -113,11 +113,11 @@ export function formatSubscription(
     subscription: SubscriptionWithPlan
 ): FormattedSubscription {
 
-
     return {
         id: subscription.id,
         userId: subscription.userId || "",
         plan: subscription.plan,
+        planId: subscription.pricingPlanId!,
         planDisplayName: subscription.pricingPlan?.displayName || subscription.plan,
         status: subscription.status,
         isActive: subscription.status === "ACTIVE",

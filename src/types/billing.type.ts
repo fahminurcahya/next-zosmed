@@ -71,6 +71,7 @@ export interface FormattedSubscription {
     id: string;
     userId: string;
     plan: string;
+    planId: string;
     planDisplayName: string;
     status: SubscriptionStatus;
     isActive: boolean;

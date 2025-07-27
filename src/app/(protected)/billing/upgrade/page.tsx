@@ -51,6 +51,8 @@ import {
     ChevronRight,
     AlertCircle,
     Store,
+    RefreshCw,
+    CheckCircle,
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -61,6 +63,9 @@ import {
     useUpgradePlans,
     useSubscriptionActions,
     useDiscountValidation,
+    useRecurringStatus,
+    useRecurringPreference,
+    useRecurringEligibility,
 } from "@/hooks/billing-hook";
 import {
     groupPaymentMethods,
@@ -71,6 +76,8 @@ import {
 } from "@/lib/xendit";
 import type { XenditChannelCode } from "@/types/xendit.type";
 import { DiscountInput, PlanCard, PlanComparisonTable, UsageCard } from "../_components";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export default function UpgradePlanPage() {
     const router = useRouter();
@@ -79,70 +86,103 @@ export default function UpgradePlanPage() {
     const [comparisonMode, setComparisonMode] = useState(false);
     const { subscription, usage, isLoading: subLoading } = useSubscription();
     const { eligibility, isLoading: plansLoading } = useUpgradePlans();
-    const { handleAction, isProcessing: actionProcessing } = useSubscriptionActions();
+    const { handleAction, handleRecurringToggle, isProcessing } = useSubscriptionActions();
     const { validation, isValidating } = useDiscountValidation(
         discountCode,
         selectedPlanId,
         !!discountCode && !!selectedPlanId
     );
+    const { recurringStatus, hasActiveRecurring } = useRecurringStatus();
+    const { preferRecurring, updatePreference } = useRecurringPreference();
+    const recurringEligibility = useRecurringEligibility();
 
-    const selectedPlan = eligibility.availablePlans.find(p => p.id === selectedPlanId);
+
+    const selectedPlan = useMemo(() => {
+        if (!selectedPlanId || !eligibility) return null;
+        return eligibility.availablePlans.find(p => p.id === selectedPlanId);
+    }, [selectedPlanId, eligibility]);
 
     const finalPrice = useMemo(() => {
         if (!selectedPlan) return 0;
-
         const basePrice = selectedPlan.priceNumber;
         if (validation?.valid && validation.calculation) {
             return validation.calculation.finalAmount;
         }
-
         return basePrice;
     }, [selectedPlan, validation]);
+
+    const handlePlanSelect = (planId: string) => {
+        setSelectedPlanId(planId);
+    };
+
+    const handleUpgrade = async () => {
+        if (!selectedPlanId) {
+            toast.error("Please select a plan");
+            return;
+        }
+        try {
+            // Store recurring preference
+            updatePreference(preferRecurring);
+            await handleAction({
+                type: "UPGRADE",
+                planId: selectedPlanId,
+                discountCode: validation?.valid ? discountCode : undefined,
+            });
+        } catch (error) {
+            console.error("Upgrade failed:", error);
+        }
+    };
+
 
     const xenditFees = useMemo(() => {
         return calculateXenditFees(finalPrice);
     }, [finalPrice]);
 
-    const handleUpgrade = () => {
-        if (!selectedPlanId) {
-            toast.error("Please select a plan");
-            return;
-        }
-        processPayment();
-    };
-
-    const processPayment = async () => {
-        if (!selectedPlanId || !subscription) return;
-        handleAction({
-            type: "UPGRADE",
-            planId: selectedPlanId,
-            discountCode: discountCode || undefined,
-        })
-    };
 
     if (subLoading || plansLoading) {
         return (
-            <div className="flex justify-center items-center min-h-[60vh]">
+            <div className="flex items-center justify-center min-h-[60vh]">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
 
-    if (!eligibility.canUpgrade) {
+    if (!eligibility?.canUpgrade) {
         return (
-            <div className="container max-w-4xl mx-auto p-6">
-                <Card className="text-center py-12">
-                    <CardContent>
-                        <TrendingUp className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                        <h2 className="text-2xl font-bold mb-2">{eligibility.reason}</h2>
-                        <Button onClick={() => router.push("/billing")} className="mt-4">
-                            View Current Plan
-                        </Button>
-                    </CardContent>
-                </Card>
+            <div className="container mx-auto p-6">
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        {eligibility?.reason || "No upgrade plans available"}
+                    </AlertDescription>
+                </Alert>
+                <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => router.push("/billing")}
+                >
+                    Back to Billing
+                </Button>
             </div>
         );
     }
+
+
+    // if (!eligibility.canUpgrade) {
+    //     return (
+    //         <div className="container max-w-4xl mx-auto p-6">
+    //             <Card className="text-center py-12">
+    //                 <CardContent>
+    //                     <TrendingUp className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+    //                     <h2 className="text-2xl font-bold mb-2">{eligibility.reason}</h2>
+    //                     <Button onClick={() => router.push("/billing")} className="mt-4">
+    //                         View Current Plan
+    //                     </Button>
+    //                 </CardContent>
+    //             </Card>
+    //         </div>
+    //     );
+    // }
 
     return (
         <div className="container  mx-auto p-6 space-y-6">
@@ -150,7 +190,7 @@ export default function UpgradePlanPage() {
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Upgrade Your Plan</h1>
                 <p className="text-gray-600">
-                    Unlock more features and grow your Instagram automation
+                    Choose a plan that fits your automation needs
                 </p>
             </div>
 
@@ -232,122 +272,193 @@ export default function UpgradePlanPage() {
                 </div>
             )}
 
-            {/* Discount & Order Summary Section */}
-            <div className="grid lg:grid-cols-2 gap-6">
-                {/* Discount Code */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Tag className="h-5 w-5" />
-                            Have a Discount Code?
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <DiscountInput
-                            value={discountCode}
-                            onChange={setDiscountCode}
-                            validation={validation}
-                            isValidating={isValidating}
-                            disabled={!selectedPlan}
-                        />
-                        {!selectedPlan && (
-                            <p className="text-sm text-gray-500 mt-2">
-                                Select a plan to apply discount code
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+            {/* Order Summary */}
+            {selectedPlan && (
+                <>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <RefreshCw className="h-5 w-5" />
+                                Auto-Renewal
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Auto-Renewal Toggle */}
+                            {recurringEligibility.canEnableRecurring && (
+                                <>
+                                    <div className="p-4 border rounded-lg">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <Label
+                                                    htmlFor="auto-renewal"
+                                                    className="text-base font-medium flex items-center gap-2"
+                                                >
+                                                    <RefreshCw className="h-4 w-4" />
+                                                    Enable Auto-Renewal
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Automatically renew your subscription every {selectedPlan.period.toLowerCase()}
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                id="auto-renewal"
+                                                checked={preferRecurring}
+                                                onCheckedChange={updatePreference}
+                                                disabled={isProcessing}
+                                            />
+                                        </div>
 
-                {/* Order Summary */}
-                <Card className={cn("transition-all", selectedPlan ? "ring-2 ring-blue-500" : "opacity-60")}>
-                    <CardHeader>
-                        <CardTitle>Order Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {selectedPlan ? (
-                            <div className="space-y-4">
-                                <div>
-                                    <h4 className="font-semibold mb-2">{selectedPlan.displayName} Plan</h4>
-                                    <div className="text-sm text-gray-600 space-y-1">
-                                        <p>• {selectedPlan.limits.maxAccounts} Instagram accounts</p>
-                                        <p>• {selectedPlan.limits.maxDMPerMonth.toLocaleString()} DM/month</p>
-                                        {selectedPlan.limits.maxAIReplyPerMonth > 0 && (
-                                            <p>• {selectedPlan.limits.maxAIReplyPerMonth.toLocaleString()} AI replies</p>
+                                        {preferRecurring && (
+                                            <Alert className="mt-3">
+                                                <Info className="h-4 w-4" />
+                                                <AlertDescription>
+                                                    You'll be redirected to securely link your payment method with Xendit.
+                                                    You can cancel auto-renewal anytime from your billing dashboard.
+                                                </AlertDescription>
+                                            </Alert>
                                         )}
                                     </div>
-                                </div>
-
-                                <Separator />
-
-                                <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                        <span>Plan Price</span>
-                                        <span>{formatXenditCurrency(selectedPlan.priceNumber)}</span>
-                                    </div>
-
-                                    {validation?.valid && (
-                                        <div className="flex justify-between text-green-600">
-                                            <span>Discount ({validation.discount?.value}%)</span>
-                                            <span>
-                                                -{formatXenditCurrency(validation.calculation?.discountAmount || 0)}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    <div className="flex justify-between text-sm text-gray-600">
-                                        <span>Payment Processing Fee</span>
-                                        <span>{formatXenditCurrency(xenditFees.totalFee)}</span>
-                                    </div>
-
                                     <Separator />
+                                </>
+                            )}
 
-                                    <div className="flex justify-between font-bold text-lg">
-                                        <span>Total Amount</span>
-                                        <span>{formatXenditCurrency(finalPrice + xenditFees.totalFee)}</span>
-                                    </div>
-                                </div>
+                            <>{recurringEligibility.reason}</>
 
+                            {/* Already has recurring */}
+                            {hasActiveRecurring && (
+                                <>
+                                    <Alert>
+                                        <CheckCircle className="h-4 w-4" />
+                                        <AlertDescription>
+                                            You already have auto-renewal enabled. It will continue with your new plan.
+                                        </AlertDescription>
+                                    </Alert>
+                                    <Separator />
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
 
-
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertDescription className="text-sm">
-                                        Your new plan will start immediately. Unused time from your current plan
-                                        will be credited as a proration discount.
-                                    </AlertDescription>
-                                </Alert>
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <Zap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                <p>Select a plan to see order summary</p>
-                            </div>
-                        )}
-                    </CardContent>
-                    {selectedPlan && (
-                        <CardFooter>
-                            <Button
-                                className="w-full"
-                                size="lg"
-                                onClick={handleUpgrade}
-                                disabled={actionProcessing}
-                            >
-                                {actionProcessing ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        Continue to Payment
-                                        <ArrowRight className="ml-2 h-5 w-5" />
-                                    </>
+                    {/* Discount & Order Summary Section */}
+                    <div className="grid lg:grid-cols-2 gap-6">
+                        {/* Discount Code */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Tag className="h-5 w-5" />
+                                    Have a Discount Code?
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <DiscountInput
+                                    value={discountCode}
+                                    onChange={setDiscountCode}
+                                    validation={validation}
+                                    isValidating={isValidating}
+                                    disabled={!selectedPlan}
+                                />
+                                {!selectedPlan && (
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        Select a plan to apply discount code
+                                    </p>
                                 )}
-                            </Button>
-                        </CardFooter>
-                    )}
-                </Card>
-            </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Order Summary */}
+                        <Card className={cn("transition-all", selectedPlan ? "ring-2 ring-blue-500" : "opacity-60")}>
+                            <CardHeader>
+                                <CardTitle>Order Summary</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {selectedPlan ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="font-semibold mb-2">{selectedPlan.displayName} Plan</h4>
+                                            <div className="text-sm text-gray-600 space-y-1">
+                                                <p>• {selectedPlan.limits.maxAccounts} Instagram accounts</p>
+                                                <p>• {selectedPlan.limits.maxDMPerMonth.toLocaleString()} DM/month</p>
+                                                {selectedPlan.limits.maxAIReplyPerMonth > 0 && (
+                                                    <p>• {selectedPlan.limits.maxAIReplyPerMonth.toLocaleString()} AI replies</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <Separator />
+
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                                <span>Plan Price</span>
+                                                <span>{formatXenditCurrency(selectedPlan.priceNumber)}</span>
+                                            </div>
+
+                                            {validation?.valid && (
+                                                <div className="flex justify-between text-green-600">
+                                                    <span>Discount ({validation.discount?.value}%)</span>
+                                                    <span>
+                                                        -{formatXenditCurrency(validation.calculation?.discountAmount || 0)}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between text-sm text-gray-600">
+                                                <span>Payment Processing Fee</span>
+                                                <span>{formatXenditCurrency(xenditFees.totalFee)}</span>
+                                            </div>
+
+                                            <Separator />
+
+                                            <div className="flex justify-between font-bold text-lg">
+                                                <span>Total Amount</span>
+                                                <span>{formatXenditCurrency(finalPrice + xenditFees.totalFee)}</span>
+                                            </div>
+                                        </div>
+
+
+
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription className="text-sm">
+                                                Your new plan will start immediately. Unused time from your current plan
+                                                will be credited as a proration discount.
+                                            </AlertDescription>
+                                        </Alert>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <Zap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                        <p>Select a plan to see order summary</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                            {selectedPlan && (
+                                <CardFooter>
+                                    <Button
+                                        className="w-full"
+                                        size="lg"
+                                        onClick={handleUpgrade}
+                                        disabled={isProcessing}
+                                    >
+                                        {isProcessing ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Continue to Payment
+                                                <ArrowRight className="ml-2 h-5 w-5" />
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardFooter>
+                            )}
+                        </Card>
+                    </div>
+                </>
+            )}
+
+
 
             {/* FAQ Section */}
             <Card className="mt-8">
@@ -357,6 +468,20 @@ export default function UpgradePlanPage() {
                 <CardContent>
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1">
+                            <AccordionTrigger>What is Auto-Renewal?</AccordionTrigger>
+                            <AccordionContent>
+                                Auto-renewal automatically charges your linked payment method each billing cycle,
+                                ensuring uninterrupted access to your automation tools.
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger>Can I cancel Auto-Renewal?</AccordionTrigger>
+                            <AccordionContent>
+                                Yes! You can pause or cancel auto-renewal anytime from your billing dashboard.
+                                Your subscription will remain active until the end of the current period.
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-3">
                             <AccordionTrigger>What happens to my current subscription?</AccordionTrigger>
                             <AccordionContent>
                                 Your new plan takes effect immediately after payment. Any unused time from your
@@ -364,7 +489,7 @@ export default function UpgradePlanPage() {
                                 new subscription.
                             </AccordionContent>
                         </AccordionItem>
-                        <AccordionItem value="item-2">
+                        <AccordionItem value="item-4">
                             <AccordionTrigger>What payment methods are accepted?</AccordionTrigger>
                             <AccordionContent>
                                 We accept various payment methods through Xendit:
@@ -377,7 +502,7 @@ export default function UpgradePlanPage() {
                                 </ul>
                             </AccordionContent>
                         </AccordionItem>
-                        <AccordionItem value="item-3">
+                        <AccordionItem value="item-5">
                             <AccordionTrigger>Are there any additional fees?</AccordionTrigger>
                             <AccordionContent>
                                 Yes, there's a small payment processing fee that varies by payment method:
@@ -390,7 +515,7 @@ export default function UpgradePlanPage() {
                                 </ul>
                             </AccordionContent>
                         </AccordionItem>
-                        <AccordionItem value="item-4">
+                        <AccordionItem value="item-6">
                             <AccordionTrigger>Can I enable auto-renewal?</AccordionTrigger>
                             <AccordionContent>
                                 Yes! When you check the "Enable auto-renewal" option, we'll save your payment

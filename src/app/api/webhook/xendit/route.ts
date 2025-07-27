@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { xenditService } from "@/server/services/xendit-service";
 import type { XenditWebhookEvent } from "@/server/services/xendit-service";
 import { db } from "@/server/db";
+import { xenditPaymentMethodService } from "@/server/services/xendit-payment-method-service";
 
 export async function POST(req: NextRequest) {
     try {
@@ -35,14 +36,16 @@ export async function POST(req: NextRequest) {
             id: xWebhookId || `webhook_${Date.now()}`,
             created: new Date().toISOString(),
             businessId: process.env.XENDIT_BUSINESS_ID || "",
-            statusEvent: webhookData.status || headersList.get("x-callback-event") || "",
+            statusEvent: webhookData.status || headersList.get("x-callback-event") || webhookData.data?.status || "",
+            event: webhookData.event,
             data: webhookData,
         };
 
         console.log(`Received Xendit webhook: ${event.statusEvent}`, {
             webhookId: event.id,
-            event: event.statusEvent,
+            eventStatus: event.statusEvent,
             dataId: webhookData.id,
+            event: event.event
         });
 
         await xenditService.handleWebhook(event);
@@ -55,7 +58,8 @@ export async function POST(req: NextRequest) {
                     payload: body,
                     headers: JSON.stringify(Object.fromEntries(headersList.entries())),
                     metadata: JSON.stringify({
-                        event: event.statusEvent,
+                        event: event.event,
+                        statusEvent: event.statusEvent,
                         webhookId: event.id,
                         processedAt: new Date().toISOString(),
                     }),

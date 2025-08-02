@@ -10,7 +10,7 @@ import { xenditPaymentMethodService } from "@/server/services/xendit-payment-met
 export async function POST(req: NextRequest) {
     try {
         const body = await req.text();
-        const webhookData = JSON.parse(body);
+        const payload = JSON.parse(body);
 
         const headersList = await headers();
         const xCallbackToken = headersList.get("x-callback-token");
@@ -36,17 +36,10 @@ export async function POST(req: NextRequest) {
             id: xWebhookId || `webhook_${Date.now()}`,
             created: new Date().toISOString(),
             businessId: process.env.XENDIT_BUSINESS_ID || "",
-            statusEvent: webhookData.status || headersList.get("x-callback-event") || webhookData.data?.status || "",
-            event: webhookData.event,
-            data: webhookData,
+            statusEvent: payload.status || headersList.get("x-callback-event") || payload.data?.status || "",
+            event: payload.event,
+            data: payload,
         };
-
-        console.log(`Received Xendit webhook: ${event.statusEvent}`, {
-            webhookId: event.id,
-            eventStatus: event.statusEvent,
-            dataId: webhookData.id,
-            event: event.event
-        });
 
         await xenditService.handleWebhook(event);
 

@@ -93,7 +93,7 @@ export const xenditService = {
             referenceId: user.id,
             givenNames: params.customer?.givenNames || user.name,
             email: params.customer?.email || user.email,
-            mobileNumber: params.customer?.mobileNumber,
+            mobileNumber: params.customer!.mobileNumber!,
         });
 
         // Create invoice reference
@@ -239,7 +239,7 @@ export const xenditService = {
                 data: {
                     referenceId: params.referenceId,
                     email: params.email,
-                    phoneNumber: params.mobileNumber,
+                    mobileNumber: params.mobileNumber,
                     individualDetail: {
                         givenNames: params.givenNames
                     },
@@ -253,6 +253,30 @@ export const xenditService = {
             throw new TRPCError({
                 code: "INTERNAL_SERVER_ERROR",
                 message: "Failed to create customer",
+            });
+        }
+    },
+
+    /**
+     * Update Xendit customer phone number
+     */
+    async updateCustomer(params: {
+        id: string;
+        mobileNumber: string;
+    }) {
+        try {
+            return await customerClient.updateCustomer({
+                id: params.id,
+                data: {
+                    mobileNumber: params.mobileNumber,
+                },
+            });
+
+        } catch (error: any) {
+            console.error("Xendit update customer error:", error);
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Failed to update customer",
             });
         }
     },
@@ -395,14 +419,14 @@ export const xenditService = {
         const { statusEvent: eventStatus, data, event: eventType } = event;
 
         // Handle payment method events
-        if (event.event?.startsWith('payment_method.')) {
-            await xenditPaymentMethodService.handleWebhook({
+        if (eventType?.startsWith('payment_method.')) {
+            return xenditPaymentMethodService.handleWebhook({
                 event: eventType,
                 data: data
             });
         }
 
-        if (eventType.startsWith('recurring.')) {
+        if (eventType?.startsWith('recurring.')) {
             return xenditRecurringService.handleWebhook({
                 event: eventType,
                 data
@@ -497,6 +521,7 @@ export const xenditService = {
             data: {
                 userId: payment.userId,
                 content: `Payment successful! Your ${payment.plan?.displayName} plan is now active.`,
+                channel: 'email'
             },
         });
 

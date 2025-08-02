@@ -34,6 +34,8 @@ export const updateProfileSchema = z.object({
     email: z.string()
         .email("Format email tidak valid")
         .max(100, "Email maksimal 100 karakter"),
+    phoneNumber: z.string().min(10, "Phone number must be at least 10 digits").optional()
+
 });
 
 // Update business info schema

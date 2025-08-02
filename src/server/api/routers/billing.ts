@@ -399,6 +399,7 @@ export const billingRouter = createTRPCRouter({
                     data: {
                         userId: ctx.session.user.id,
                         content: `Cancellation reason: ${input.reason || "Not specified"}. Feedback: ${input.feedback || "None"}`,
+                        channel: 'email'
                     },
                 });
             }

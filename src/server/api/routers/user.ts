@@ -23,6 +23,7 @@ export const userRouter = createTRPCRouter({
                         id: true,
                         name: true,
                         email: true,
+                        phone: true,
                         businessName: true,
                         businessCategory: true,
                         businessSize: true,
@@ -59,6 +60,7 @@ export const userRouter = createTRPCRouter({
                             id: user.id,
                             name: user.name || '',
                             email: user.email || '',
+                            phone: user.phone || '',
                             createdAt: user.createdAt,
                             updatedAt: user.updatedAt,
                         },
@@ -126,6 +128,7 @@ export const userRouter = createTRPCRouter({
                     data: {
                         userId,
                         content: "Password berhasil diubah",
+                        channel: 'email'
                     },
                 });
 
@@ -172,6 +175,7 @@ export const userRouter = createTRPCRouter({
                     data: {
                         name: input.name.trim(),
                         email: input.email.toLowerCase().trim(),
+                        phone: input.phoneNumber,
                         updatedAt: new Date(),
                     },
                     select: {

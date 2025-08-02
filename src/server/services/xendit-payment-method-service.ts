@@ -5,35 +5,38 @@ import { db } from '@/server/db';
 interface PaymentMethodParams {
     type: 'CARD' | 'EWALLET' | 'DIRECT_DEBIT';
     reusability: 'ONE_TIME_USE' | 'MULTIPLE_USE';
-    customerId: string;
+    customer_id: string;
     description?: string;
+    country?: string
     metadata?: Record<string, any>;
     card?: {
         currency: string;
-        channelProperties: {
-            successReturnUrl: string;
-            failureReturnUrl: string;
-            skipThreeDSecure?: boolean;
+        token_id: string;
+        authentication_3ds_id: string | undefined;
+        channel_properties?: {
+            success_return_url: string;
+            failure_return_url: string;
+            skip_three_d_secure?: boolean;
         };
     };
     ewallet?: {
-        channelCode: 'OVO' | 'DANA' | 'SHOPEEPAY' | 'LINKAJA' | 'ASTRAPAY' | 'SAKUKU';
-        channelProperties: {
-            successReturnUrl: string;
-            failureReturnUrl: string;
-            cancelReturnUrl?: string;
-            mobileNumber?: string;
+        channel_code: 'OVO' | 'DANA' | 'SHOPEEPAY' | 'LINKAJA' | 'ASTRAPAY' | 'SAKUKU';
+        channel_properties: {
+            success_return_url: string;
+            failure_return_url: string;
+            cancel_return_url?: string;
+            mobile_number?: string;
             cashtag?: string;
         };
     };
-    directDebit?: {
-        channelCode: 'BCA_KLIKPAY' | 'BCA_ONEKLIK' | 'BRI' | 'MANDIRI' | 'BNI' | 'RCBC' | 'UBP' | 'CHINABANK';
-        channelProperties: {
-            successReturnUrl: string;
-            failureReturnUrl: string;
-            mobileNumber?: string;
-            cardLastFour?: string;
-            cardExpiry?: string;
+    direct_debit?: {
+        channel_code: 'BCA_KLIKPAY' | 'BCA_ONEKLIK' | 'BRI' | 'MANDIRI' | 'BNI' | 'RCBC' | 'UBP' | 'CHINABANK';
+        channel_properties: {
+            success_return_url: string;
+            failure_return_url: string;
+            mobile_number?: string;
+            card_last_four?: string;
+            card_expiry?: string;
             email?: string;
         };
     };
@@ -44,57 +47,57 @@ interface PaymentMethodResponse {
     type: string;
     status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'EXPIRED' | 'FAILED';
     reusability: string;
-    customerId: string;
+    customer_id: string;
     actions?: Array<{
         action: string;
         method: string;
         url: string;
-        urlType: string;
+        url_type: string;
     }>;
     description?: string;
     created: string;
     updated: string;
     metadata?: Record<string, any>;
-    billingInformation?: {
+    billing_information?: {
         country: string;
     };
-    failureCode?: string;
+    failure_code?: string;
     ewallet?: {
-        channelCode: string;
-        channelProperties: {
+        channel_code: string;
+        channel_properties: {
             id: string;
             cashtag?: string;
         };
         account: {
             name: string;
-            accountDetails: string;
+            account_details: string;
             balance: number;
             currency: string;
         };
     };
-    directDebit?: {
-        channelCode: string;
-        channelProperties: Record<string, any>;
+    direct_debit?: {
+        channel_code: string;
+        channel_properties: Record<string, any>;
         type: string;
-        bankAccount?: {
-            bankAccountHash: string;
-            maskedBankAccountNumber: string;
+        bank_account?: {
+            bank_account_hash: string;
+            masked_bank_account_number: string;
         };
-        debitCard?: {
-            maskedDebitCardNumber: string;
+        debit_card?: {
+            masked_debit_card_number: string;
         };
     };
     card?: {
         currency: string;
-        channelProperties: {
-            skipThreeDSecure: boolean;
+        channel_properties: {
+            skip_three_d_secure: boolean;
         };
-        cardInformation: {
-            tokenId: string;
-            maskedCardNumber: string;
-            expiryMonth: string;
-            expiryYear: string;
-            cardholderName: string;
+        card_information: {
+            token_id: string;
+            masked_card_number: string;
+            expiry_month: string;
+            expiry_year: string;
+            cardholder_name: string;
             fingerprint: string;
             type: string;
             network: string;
@@ -194,45 +197,95 @@ class XenditPaymentMethodService {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
         const externalId = `pm_${params.userId}_${Date.now()}`;
 
+        // For CARD type, we need to use Xendit's tokenization flow
+        if (params.type === 'CARD') {
+            try {
+                // Create a setup intent for card tokenization
+                const response = await this.api.post('/v2/credit_card_tokens/authentication_setups', {
+                    amount: 10000, // Minimum amount for authentication
+                    currency: 'IDR',
+                    channel_properties: {
+                        success_return_url: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}&type=card`,
+                        failure_return_url: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}&type=card`,
+                        cancel_return_url: `${baseUrl}/billing/payment-methods/cancel?external_id=${externalId}&type=card`
+                    },
+                    capture_method: 'MANUAL',
+                    customer_id: params.customerId,
+                    description: 'Setup payment method for recurring subscription',
+                    metadata: {
+                        userId: params.userId,
+                        purpose: 'recurring_subscription',
+                        externalId
+                    }
+                });
+
+                // Save pending payment method
+                await db.paymentMethod.create({
+                    data: {
+                        userId: params.userId,
+                        xenditPaymentMethodId: externalId, // Temporary, will be updated after tokenization
+                        type: 'CARD',
+                        channelCode: 'CARD',
+                        status: 'PENDING_ACTIVATION',
+                        isDefault: false,
+                        metadata: {
+                            setupId: response.data.id,
+                            ...response.data
+                        }
+                    }
+                });
+
+                return {
+                    paymentMethodId: externalId,
+                    authUrl: response.data.actions?.find((a: any) => a.action === 'PRESENT_CARD_DETAILS')?.url || response.data.url,
+                    status: 'PENDING',
+                    externalId
+                };
+            } catch (error: any) {
+                console.error('Card tokenization setup error:', error.response?.data);
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: error.response?.data?.message || 'Failed to setup card tokenization',
+                    cause: error.response?.data
+                });
+            }
+        }
+
+        // For non-card payment methods (existing code)
         const paymentMethodParams: PaymentMethodParams = {
             type: params.type,
             reusability: 'MULTIPLE_USE',
-            customerId: params.customerId,
+            customer_id: params.customerId,
+            country: "ID",
             description: 'Auto-renewal payment method',
             metadata: {
                 userId: params.userId,
-                purpose: 'recurring_subscription'
+                purpose: 'recurring_subscription',
+                externalId
             }
         };
 
         // Configure based on type
-        if (params.type === 'CARD') {
-            paymentMethodParams.card = {
-                currency: 'IDR',
-                channelProperties: {
-                    successReturnUrl: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}`,
-                    failureReturnUrl: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}`,
-                    skipThreeDSecure: false
-                }
-            };
-        } else if (params.type === 'EWALLET' && params.channelCode) {
+        if (params.type === 'EWALLET' && params.channelCode) {
             paymentMethodParams.ewallet = {
-                channelCode: params.channelCode as any,
-                channelProperties: {
-                    successReturnUrl: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}`,
-                    failureReturnUrl: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}`,
-                    cancelReturnUrl: `${baseUrl}/billing/payment-methods/cancel?external_id=${externalId}`
+                channel_code: params.channelCode as any,
+                channel_properties: {
+                    success_return_url: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}`,
+                    failure_return_url: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}`,
+                    cancel_return_url: `${baseUrl}/billing/payment-methods/cancel?external_id=${externalId}`
                 }
             };
         } else if (params.type === 'DIRECT_DEBIT' && params.channelCode) {
-            paymentMethodParams.directDebit = {
-                channelCode: params.channelCode as any,
-                channelProperties: {
-                    successReturnUrl: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}`,
-                    failureReturnUrl: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}`
+            paymentMethodParams.direct_debit = {
+                channel_code: params.channelCode as any,
+                channel_properties: {
+                    success_return_url: `${baseUrl}/billing/payment-methods/success?external_id=${externalId}`,
+                    failure_return_url: `${baseUrl}/billing/payment-methods/failed?external_id=${externalId}`
                 }
             };
         }
+
+        console.log(paymentMethodParams)
 
         const paymentMethod = await this.createPaymentMethod(paymentMethodParams);
 
@@ -260,6 +313,71 @@ class XenditPaymentMethodService {
             status: paymentMethod.status,
             externalId
         };
+    }
+
+    async handleCardTokenCallback(params: {
+        userId: string;
+        tokenId: string;
+        externalId: string;
+        authentication3dsId?: string;
+    }) {
+        try {
+            // Get customer
+            const customer = await db.user.findUnique({
+                where: { id: params.userId },
+                select: { id: true, email: true }
+            });
+
+            if (!customer) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'User not found'
+                });
+            }
+
+            // Create payment method with the token
+            const paymentMethodParams: PaymentMethodParams = {
+                type: 'CARD',
+                reusability: 'MULTIPLE_USE',
+                customer_id: customer.id,
+                description: 'Auto-renewal payment method',
+                card: {
+                    currency: 'IDR',
+                    token_id: params.tokenId,
+                    authentication_3ds_id: params.authentication3dsId
+                },
+                metadata: {
+                    userId: params.userId,
+                    purpose: 'recurring_subscription',
+                    externalId: params.externalId
+                }
+            };
+
+            const paymentMethod = await this.createPaymentMethod(paymentMethodParams);
+
+            // Update the pending payment method
+            await db.paymentMethod.update({
+                where: {
+                    userId: params.userId,
+                    xenditPaymentMethodId: params.externalId
+                },
+                data: {
+                    xenditPaymentMethodId: paymentMethod.id,
+                    status: paymentMethod.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_ACTIVATION',
+                    activatedAt: paymentMethod.status === 'ACTIVE' ? new Date() : null,
+                    metadata: JSON.parse(JSON.stringify(paymentMethod))
+                }
+            });
+
+            return paymentMethod;
+        } catch (error: any) {
+            console.error('Card payment method creation error:', error);
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: error.response?.data?.message || 'Failed to create card payment method',
+                cause: error.response?.data
+            });
+        }
     }
 
     /**
@@ -364,20 +482,20 @@ class XenditPaymentMethodService {
      */
     private getPaymentMethodDisplayName(paymentMethod: PaymentMethodResponse): string {
         if (paymentMethod.card) {
-            const card = paymentMethod.card.cardInformation;
-            return `${card.network} •••• ${card.maskedCardNumber.slice(-4)}`;
+            const card = paymentMethod.card.card_information;
+            return `${card.network} •••• ${card.masked_card_number.slice(-4)}`;
         }
 
         if (paymentMethod.ewallet) {
-            return `${paymentMethod.ewallet.channelCode} - ${paymentMethod.ewallet.account.name}`;
+            return `${paymentMethod.ewallet.channel_code} - ${paymentMethod.ewallet.account.name}`;
         }
 
-        if (paymentMethod.directDebit) {
-            if (paymentMethod.directDebit.bankAccount) {
-                return `${paymentMethod.directDebit.channelCode} •••• ${paymentMethod.directDebit.bankAccount.maskedBankAccountNumber.slice(-4)}`;
+        if (paymentMethod.direct_debit) {
+            if (paymentMethod.direct_debit.bank_account) {
+                return `${paymentMethod.direct_debit.channel_code} •••• ${paymentMethod.direct_debit.bank_account.masked_bank_account_number.slice(-4)}`;
             }
-            if (paymentMethod.directDebit.debitCard) {
-                return `${paymentMethod.directDebit.channelCode} •••• ${paymentMethod.directDebit.debitCard.maskedDebitCardNumber.slice(-4)}`;
+            if (paymentMethod.direct_debit.debit_card) {
+                return `${paymentMethod.direct_debit.channel_code} •••• ${paymentMethod.direct_debit.debit_card.masked_debit_card_number.slice(-4)}`;
             }
         }
 

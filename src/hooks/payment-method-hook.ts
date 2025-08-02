@@ -113,22 +113,84 @@ export function usePaymentMethodActions() {
 }
 
 /**
- * Hook for available payment channels
+ * Hook for available payment channels - UPDATED to use database
  */
 export function usePaymentChannels() {
-    const query = api.paymentMethod.getAvailableChannels.useQuery();
+    // REPLACE the hardcoded getAvailableChannels with dynamic channels
+    const query = api.paymentChannel.listForUser.useQuery({
+        isRecurring: true, // Only get recurring-enabled channels
+    });
 
     const channels = useMemo(() => {
-        if (!query.data) return null;
+        if (!query.data?.data) return null;
+
+        const channelData = query.data.data;
+
+        // Helper function to get channel logo
+        const getChannelLogo = (channelCode: string): string => {
+            const logoMap: Record<string, string> = {
+                'OVO': '🟣',
+                'ID_OVO': '🟣',
+                'DANA': '🔵',
+                'ID_DANA': '🔵',
+                'SHOPEEPAY': '🟠',
+                'ID_SHOPEEPAY': '🟠',
+                'LINKAJA': '🔴',
+                'ID_LINKAJA': '🔴',
+                'BCA': '🔵',
+                'BNI': '🟠',
+                'BRI': '🔵',
+                'MANDIRI': '🟡',
+                'PERMATA': '🟢',
+                'QRIS': '📱',
+                'ID_QRIS': '📱',
+                'BCA_ONEKLIK': '🏦',
+                'CARD': '💳'
+            };
+            return logoMap[channelCode] || '💳';
+        };
+
+        // Transform database channels to expected format
+        const ewalletChannels = channelData
+            .filter(ch => ch.type === 'EWALLET' && ch.isRecurringEnabled)
+            .map(ch => ({
+                code: ch.xenditChannelCode || ch.channelCode,
+                name: ch.channelName,
+                logo: getChannelLogo(ch.xenditChannelCode || ch.channelCode),
+                requiresPhoneNumber: ['ID_OVO', 'ID_LINKAJA'].includes(ch.xenditChannelCode || ''),
+            }));
+
+        const directDebitChannels = channelData
+            .filter(ch => (ch.type === 'DIRECT_DEBIT' || ch.type === 'VIRTUAL_ACCOUNT') && ch.isRecurringEnabled)
+            .map(ch => ({
+                code: ch.xenditChannelCode || ch.channelCode,
+                name: ch.channelName,
+                logo: getChannelLogo(ch.xenditChannelCode || ch.channelCode),
+                requiresPhoneNumber: false,
+            }));
 
         return {
-            card: query.data.card,
-            ewallet: query.data.ewallet,
-            directDebit: query.data.directDebit,
+            card: {
+                type: 'CARD',
+                name: 'Credit/Debit Card',
+                channels: [
+                    { code: 'CARD', name: 'All Cards', logo: '💳' }
+                ]
+            },
+            ewallet: {
+                type: 'EWALLET',
+                name: 'E-Wallet',
+                channels: ewalletChannels,
+            },
+            directDebit: {
+                type: 'DIRECT_DEBIT',
+                name: 'Bank Transfer',
+                channels: directDebitChannels,
+            },
             all: [
-                ...query.data.card.channels.map(c => ({ ...c, type: 'CARD' })),
-                ...query.data.ewallet.channels.map(c => ({ ...c, type: 'EWALLET' })),
-                ...query.data.directDebit.channels.map(c => ({ ...c, type: 'DIRECT_DEBIT' })),
+                { code: 'CARD', name: 'All Cards', logo: '💳', type: 'CARD' },
+                ...ewalletChannels.map(c => ({ ...c, type: 'EWALLET' })),
+                ...directDebitChannels.map(c => ({ ...c, type: 'DIRECT_DEBIT' })),
             ]
         };
     }, [query.data]);

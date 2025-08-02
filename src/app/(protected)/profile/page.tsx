@@ -96,6 +96,7 @@ export default function ProfilePage() {
                                     defaultValues={{
                                         name: profileData.profile.name,
                                         email: profileData.profile.email,
+                                        phoneNumber: profileData.profile.phone
                                     }}
                                     accountInfo={{
                                         createdAt: profileData.profile.createdAt,

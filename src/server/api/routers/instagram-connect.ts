@@ -130,6 +130,7 @@ export const instagramConnectRouter = createTRPCRouter({
                 data: {
                     userId,
                     content: `Successfully connected Instagram account @${profile.username}`,
+                    channel: 'email'
                 },
             });
 
@@ -257,6 +258,7 @@ export const instagramConnectRouter = createTRPCRouter({
                 data: {
                     userId: ctx.session.user.id,
                     content: `Instagram account @${account.accountUsername} has been disconnected and all related data deleted`,
+                    channel: 'email'
                 },
             });
 

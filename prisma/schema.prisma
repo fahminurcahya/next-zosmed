@@ -43,6 +43,7 @@ model User {
   emailVerified         Boolean           @map("email_verified")
   image                 String?
   role                  String            @default("customer")
+  phone                 String?
   hasOnboarding         Boolean           @default(false) @map("has_onboarding")
   businessName          String?           @map("business_name")
   businessCategory      BusinessCategory? @map("business_category")
@@ -491,13 +492,27 @@ model WorkflowTemplate {
 }
 
 model Notification {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  User      User?    @relation(fields: [userId], references: [id])
-  userId    String?  @map("user_id")
-  isSeen    Boolean  @default(false) @map("is_seen")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
+  id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String? @map("user_id")
 
+  channel  String // "email", "push", "sms", etc.
+  title    String? // Optional: for email subject or push title
+  content  String // Message content (text or JSON string)
+  metadata Json? // JSON: additional data (email to, token, etc.)
+
+  status     String  @default("pending") // "pending", "sent", "failed", "processing"
+  retryCount Int     @default(0) @map("retry_count") // Retry count
+  error      String?
+
+  isSeen      Boolean   @default(false) @map("is_seen")
+  scheduledAt DateTime? @map("scheduled_at") // Optional: scheduled send time
+  sentAt      DateTime? @map("sent_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, scheduledAt])
   @@map("notification")
   @@schema("zosmed")
 }
@@ -748,5 +763,69 @@ model PaymentMethod {
   @@index([userId, status])
   @@index([xenditPaymentMethodId])
   @@map("payment_method")
+  @@schema("zosmed")
+}
+
+model PaymentChannel {
+  id          String             @id @default(cuid())
+  channelCode String             @unique @map("channel_code") // BCA, OVO, QRIS, dll
+  channelName String             @map("channel_name") // Display name
+  type        PaymentChannelType @default(VIRTUAL_ACCOUNT)
+  category    PaymentCategory    @default(BANK_TRANSFER)
+
+  // Configuration
+  isActive           Boolean @default(true) @map("is_active")
+  isOneTimeEnabled   Boolean @default(true) @map("is_one_time_enabled")
+  isRecurringEnabled Boolean @default(false) @map("is_recurring_enabled")
+
+  // Display settings
+  logo            String? // URL or icon name
+  backgroundColor String? @map("bg_color")
+  textColor       String? @map("text_color")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  // Limits & fees
+  minAmount     Float? @map("min_amount")
+  maxAmount     Float? @map("max_amount")
+  processingFee Float? @map("processing_fee") // Fixed fee
+  percentageFee Float? @map("percentage_fee") // Percentage fee
+
+  // Business rules
+  allowedForPlans String[] @map("allowed_for_plans") // ["FREE", "STARTER", "PRO"] or empty for all
+  description     String? // Admin notes
+  customerMessage String?  @map("customer_message") // Message shown to customer
+
+  // Metadata
+  xenditChannelCode String? @map("xendit_channel_code") // Actual Xendit channel code
+  metadata          Json? // Additional config
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@index([type, isActive])
+  @@index([isOneTimeEnabled])
+  @@index([isRecurringEnabled])
+  @@map("payment_channel")
+  @@schema("zosmed")
+}
+
+enum PaymentChannelType {
+  VIRTUAL_ACCOUNT // BCA, BNI, BRI, Mandiri
+  EWALLET // OVO, DANA, LinkAja, ShopeePay
+  QR_CODE // QRIS
+  CREDIT_CARD // Credit/Debit cards
+  BANK_TRANSFER // Direct bank transfer
+  DIRECT_DEBIT // Recurring payments
+
+  @@schema("zosmed")
+}
+
+enum PaymentCategory {
+  BANK_TRANSFER // Traditional banking
+  DIGITAL_WALLET // E-wallet solutions
+  CARD_PAYMENT // Credit/debit cards
+  QR_PAYMENT // QR code based
+
   @@schema("zosmed")
 }

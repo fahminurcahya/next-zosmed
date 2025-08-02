@@ -432,12 +432,7 @@ export function useRecurringEligibility() {
                 reason: "No active subscription",
             };
         }
-        if (subscription.plan === "FREE") {
-            return {
-                canEnableRecurring: false,
-                reason: "Recurring not available for free plan",
-            };
-        }
+
         if (recurringStatus?.status === "ACTIVE") {
             return {
                 canEnableRecurring: false,

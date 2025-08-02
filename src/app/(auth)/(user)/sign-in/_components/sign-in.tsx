@@ -11,14 +11,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema, type signInSchemaType } from "@/schema/user";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function SignIn() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-
-
     const [error, setError] = useState('');
-
 
     const form = useForm<signInSchemaType>({
         resolver: zodResolver(signInSchema),
@@ -30,6 +28,8 @@ export default function SignIn() {
 
     const onSubmit = async (data: signInSchemaType) => {
         setLoading(true);
+        setError(''); // Clear previous errors
+
         await authClient.signIn.email(
             data,
             {
@@ -38,10 +38,11 @@ export default function SignIn() {
                     router.push("/dashboard");
                 },
                 onError: (ctx) => {
+                    setLoading(false);
                     if (ctx.error.status === 403) {
                         setError("Please verify your email address");
                     } else {
-                        setError(ctx.error.message)
+                        setError(ctx.error.message);
                     }
                 },
                 onResponse: () => {
@@ -50,7 +51,6 @@ export default function SignIn() {
             },
         );
     }
-
 
     return (
         <>
@@ -74,8 +74,12 @@ export default function SignIn() {
                                         Email
                                     </FormLabel>
                                     <FormControl>
-                                        <Input {...field} type="email"
+                                        <Input
+                                            {...field}
+                                            type="email"
                                             placeholder="example@mail.com"
+                                            disabled={loading}
+                                            className={loading ? "opacity-50" : ""}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -91,14 +95,19 @@ export default function SignIn() {
                                         <FormLabel>Password</FormLabel>
                                         <Link
                                             href="/forget-password"
-                                            className="text-sm text-blue-600 hover:underline"
+                                            className={`text-sm text-blue-600 hover:underline ${loading ? 'pointer-events-none opacity-50' : ''
+                                                }`}
                                         >
                                             Lupa password?
                                         </Link>
                                     </div>
                                     <FormControl>
-                                        <Input {...field} type="password"
+                                        <Input
+                                            {...field}
+                                            type="password"
                                             placeholder="Input password"
+                                            disabled={loading}
+                                            className={loading ? "opacity-50" : ""}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -113,23 +122,30 @@ export default function SignIn() {
                         <Button
                             type="submit"
                             size={"lg"}
-                            className="w-full"
+                            className="w-full flex items-center justify-center gap-2"
                             disabled={loading}
                         >
-                            Sign In
+                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading ? "Signing In..." : "Sign In"}
                         </Button>
                     </form>
                 </Form>
-                <p className="mt-6 text-sm text-center">
+                <p className={`mt-6 text-sm text-center ${loading ? 'opacity-50' : ''}`}>
                     Don't have an account?{' '}
-                    <a href="/sign-up" className="text-black font-semibold hover:underline">
+                    <a
+                        href="/sign-up"
+                        className={`text-black font-semibold hover:underline ${loading ? 'pointer-events-none' : ''
+                            }`}
+                    >
                         Sign Up
                     </a>
                 </p>
             </div>
             {/* Right Panel - Hidden on small screens */}
             <div className="hidden md:flex w-1/2 bg-white items-center justify-center">
-                <Image src={"/new-logo.png"} alt="zosmed"
+                <Image
+                    src={"/new-logo.png"}
+                    alt="zosmed"
                     width={350}
                     height={200}
                     className="object-cover"
@@ -138,4 +154,3 @@ export default function SignIn() {
         </>
     );
 }
-

@@ -24,6 +24,7 @@ export const paymentMethodRouter = createTRPCRouter({
         .input(z.object({
             type: z.enum(['CARD', 'EWALLET', 'DIRECT_DEBIT']),
             channelCode: z.string().optional(),
+            phoneNumber: z.string().optional(),
             setAsDefault: z.boolean().default(false)
         }))
         .mutation(async ({ ctx, input }) => {
@@ -39,18 +40,53 @@ export const paymentMethodRouter = createTRPCRouter({
                 });
             }
 
+            // VALIDATE CHANNEL FROM DATABASE
+            let channelInfo = null;
+            if (input.channelCode && input.type !== 'CARD') {
+                channelInfo = await ctx.db.paymentChannel.findFirst({
+                    where: {
+                        OR: [
+                            { channelCode: input.channelCode },
+                            { xenditChannelCode: input.channelCode }
+                        ],
+                        isActive: true,
+                        isRecurringEnabled: true, // Only recurring-enabled channels
+                    }
+                });
+
+                if (!channelInfo) {
+                    throw new TRPCError({
+                        code: "BAD_REQUEST",
+                        message: "Invalid or inactive payment channel"
+                    });
+                }
+            }
+
             const customer = await xenditService.createOrGetCustomer({
                 referenceId: user.id,
                 givenNames: user.name || "Customer",
-                email: user.email
+                email: user.email,
+                mobileNumber: input.phoneNumber,
             });
 
-            // Create payment method
+            // UPDATE: Use xenditChannelCode from database
+            const xenditChannelCode = channelInfo?.xenditChannelCode || input.channelCode;
+
+            if (xenditChannelCode === 'ID_OVO' || xenditChannelCode === 'ID_LINKAJA') {
+                if (customer?.mobileNumber != input.phoneNumber) {
+                    await xenditService.updateCustomer({
+                        id: customer?.id!,
+                        mobileNumber: input.phoneNumber!
+                    })
+                }
+            }
+
+            // Create payment method with validated channel
             const result = await xenditPaymentMethodService.createRecurringPaymentMethod({
                 userId: user.id,
                 customerId: customer!.id,
                 type: input.type,
-                channelCode: input.channelCode
+                channelCode: xenditChannelCode // Use xendit channel code
             });
 
             // Set as default if requested
@@ -232,5 +268,41 @@ export const paymentMethodRouter = createTRPCRouter({
                 success: true,
                 message: "Payment method updated successfully"
             };
+        }),
+
+    processCardToken: protectedProcedure
+        .input(z.object({
+            tokenId: z.string(),
+            authentication3dsId: z.string().optional(),
+            externalId: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+            try {
+
+                // Process the card token
+                const result = await xenditPaymentMethodService.handleCardTokenCallback({
+                    userId: ctx.session.user.id,
+                    tokenId: input.tokenId,
+                    authentication3dsId: input.authentication3dsId,
+                    externalId: input.externalId
+                });
+
+                // Invalidate queries to refresh data
+                // await Promise.all([
+                //     ctx.utils.paymentMethod.list.invalidate(),
+                //     ctx.utils.billing.getRecurringStatus.invalidate()
+                // ]);
+
+                return {
+                    success: true,
+                    paymentMethod: result
+                };
+            } catch (error: any) {
+                console.error('Process card token error:', error);
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: error.message || 'Failed to process card token'
+                });
+            }
         }),
 });

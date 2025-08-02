@@ -46,6 +46,10 @@ import {
     FileText,
     TrendingUp,
     MoreHorizontal,
+    Settings,
+    AlertTriangle,
+    Info,
+    Plus,
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -57,6 +61,7 @@ import { usePaymentHistory, useRecurringHistory, useSubscription, useSubscriptio
 import RecurringStatusCard from "./_components/recurring-status-card";
 import EnableRecurringDialog from "./_components/enable-recurring-dialog";
 import { boolean } from "zod";
+import { usePaymentMethods } from "@/hooks/payment-method-hook";
 
 type SubscriptionAction =
     | { type: "CANCEL"; reason?: string; feedback?: string }
@@ -70,11 +75,10 @@ export default function BillingDashboardPage() {
     const [cancelFeedback, setCancelFeedback] = useState("");
     const [activeTab, setActiveTab] = useState<"payments" | "recurring">("payments");
 
-
     const { subscription, usage, isLoading: subLoading } = useSubscription();
     const { handleAction, isProcessing } = useSubscriptionActions();
+    const { paymentMethods, hasActiveMethod, defaultMethod, isLoading: paymentMethodsLoading } = usePaymentMethods();
     const [showEnableDialog, setShowEnableDialog] = useState(false);
-
 
     const {
         payments,
@@ -138,7 +142,14 @@ export default function BillingDashboardPage() {
         );
     };
 
-    if (subLoading) {
+    const getPaymentMethodDisplay = (method: any) => {
+        if (method.type === 'CREDIT_CARD') {
+            return `${method.brand} •••• ${method.lastFour}`;
+        }
+        return method.type.replace('_', ' ');
+    };
+
+    if (subLoading || paymentMethodsLoading) {
         return (
             <div className="flex justify-center items-center min-h-[60vh]">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -149,12 +160,43 @@ export default function BillingDashboardPage() {
     return (
         <div className="container mx-auto p-6 space-y-8">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold mb-2">Billing & Subscription</h1>
-                <p className="text-gray-600">
-                    Manage your subscription and view payment history
-                </p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold mb-2">Billing & Subscription</h1>
+                    <p className="text-gray-600">
+                        Manage your subscription and view payment history
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    onClick={() => router.push("/billing/payment-method")}
+                    className="flex items-center gap-2"
+                >
+                    <CreditCard className="h-4 w-4" />
+                    Payment Methods
+                </Button>
             </div>
+
+            {/* Payment Method Warning for Non-Free Plans */}
+            {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="flex items-center justify-between">
+                        <span>
+                            No active payment method found. Add a payment method to ensure uninterrupted service and enable recurring payments.
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push("/billing/payment-method")}
+                            className="ml-4 bg-white text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Payment Method
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
 
             {/* Current Subscription */}
             <div className="grid gap-6 md:grid-cols-2">
@@ -162,9 +204,17 @@ export default function BillingDashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                             Current Plan
-                            {subscription?.isActive && (
-                                <Badge variant="success">Active</Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {subscription?.isActive && (
+                                    <Badge variant="success">Active</Badge>
+                                )}
+                                {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && (
+                                    <Badge variant="destructive" className="flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" />
+                                        No Payment Method
+                                    </Badge>
+                                )}
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -261,10 +311,92 @@ export default function BillingDashboardPage() {
                         usage={usage}
                     />
                 )}
-
             </div>
 
-            <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+            {/* Payment Method Management Card */}
+            {subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <CreditCard className="h-5 w-5" />
+                                Payment Methods
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push("/billing/payment-method")}
+                            >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Manage
+                            </Button>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {hasActiveMethod ? (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <CreditCard className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">
+                                                {defaultMethod ? getPaymentMethodDisplay(defaultMethod) : 'Default Payment Method'}
+                                            </p>
+                                            <p className="text-sm text-gray-500">
+                                                {paymentMethods.length} payment method{paymentMethods.length !== 1 ? 's' : ''} available
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Badge variant="success">Active</Badge>
+                                </div>
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>
+                                        Recurring payments require an active payment method. Your current method will be used for automatic renewals.
+                                    </AlertDescription>
+                                </Alert>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <CreditCard className="h-6 w-6 text-gray-400" />
+                                </div>
+                                <h3 className="font-medium mb-2">No Payment Methods</h3>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Add a payment method to enable recurring payments and ensure uninterrupted service.
+                                </p>
+                                <Button
+                                    onClick={() => router.push("/billing/payment-method")}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add Payment Method
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Recurring Status Card - Only show for non-free plans */}
+            {subscription?.planDisplayName.toLowerCase() !== "free".toLowerCase() && (
+                <>
+                    <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+
+                    {/* Recurring Payment Info */}
+                    {!hasActiveMethod && (
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertDescription>
+                                <strong>About Recurring Payments:</strong> To enable automatic recurring payments, you need to add a payment method first.
+                                This ensures your subscription continues uninterrupted without manual payments each month.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </>
+            )}
 
             {/* Payment Statistics */}
             {stats && (
@@ -392,9 +524,18 @@ export default function BillingDashboardPage() {
                                     </TableBody>
                                 </Table>
                             ) : (
-                                <p className="text-center text-gray-600 py-8">
-                                    No payment history found
-                                </p>
+                                <div className="text-center py-8">
+                                    <p className="text-gray-600 mb-4">No payment history found</p>
+                                    {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => router.push("/billing/payment-method")}
+                                        >
+                                            <CreditCard className="mr-2 h-4 w-4" />
+                                            Add Payment Method
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                             {hasMore && (
                                 <div className="mt-4 text-center">
@@ -459,9 +600,23 @@ export default function BillingDashboardPage() {
                                     </TableBody>
                                 </Table>
                             ) : (
-                                <p className="text-center text-gray-600 py-8">
-                                    No recurring payment history found
-                                </p>
+                                <div className="text-center py-8">
+                                    <p className="text-gray-600 mb-4">No recurring payment history found</p>
+                                    {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+                                        <div className="mt-4">
+                                            <p className="text-sm text-gray-500 mb-3">
+                                                Set up a payment method to enable automatic recurring payments
+                                            </p>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => router.push("/billing/payment-method")}
+                                            >
+                                                <CreditCard className="mr-2 h-4 w-4" />
+                                                Add Payment Method
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                             {hasMoreCycles && (
                                 <div className="mt-4 text-center">
@@ -482,7 +637,6 @@ export default function BillingDashboardPage() {
                     )}
                 </CardContent>
             </Card>
-
 
             {/* Cancel Subscription Dialog */}
             <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

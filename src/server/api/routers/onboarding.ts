@@ -404,6 +404,7 @@ export const onboardingRouter = createTRPCRouter({
                         content: input.hasConnection
                             ? 'Onboarding completed successfully with Instagram connection!'
                             : 'Onboarding completed! You can connect Instagram anytime from the dashboard.',
+                        channel: 'email'
                     },
                 });
 

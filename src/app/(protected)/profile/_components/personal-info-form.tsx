@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { updateProfileSchema, type UpdateProfileInput } from '@/schema/user';
+import { Phone } from 'lucide-react';
 
 interface PersonalInfoFormProps {
     defaultValues: {
         name: string;
         email: string;
+        phoneNumber?: string;
     };
     accountInfo: {
         createdAt: Date;
@@ -48,7 +50,6 @@ export function PersonalInfoForm({ defaultValues, accountInfo, onSubmit, isLoadi
                         />
                     </div>
                     <div className="space-y-2">
-
                         <FormField
                             control={form.control}
                             name="email"
@@ -56,16 +57,41 @@ export function PersonalInfoForm({ defaultValues, accountInfo, onSubmit, isLoadi
                                 <FormItem>
                                     <FormLabel>Email</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="email@example.com" {...field} />
+                                        <Input placeholder="email@example.com" {...field} disabled />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
-                            disabled
                         />
                     </div>
                 </div>
 
+                <div className="space-y-2">
+                    <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>
+                                    <Phone className="w-4 h-4 inline mr-1" />
+                                    Phone Number
+                                </FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="tel"
+                                        placeholder="08123456789"
+                                        {...field}
+                                        disabled={isLoading}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        This number will also be used for e-wallet payment methods (ShopeePay, OVO)
+                    </p>
+                </div>
 
                 <div className="text-sm text-muted-foreground">
                     Joined: {new Date(accountInfo.createdAt).toLocaleDateString()} • Last updated: {new Date(accountInfo.updatedAt).toLocaleDateString()}

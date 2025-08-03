@@ -397,6 +397,7 @@ export const onboardingRouter = createTRPCRouter({
                     },
                 });
 
+                // TODO : NOTIF onboard completed
                 // Create completion notification
                 await ctx.db.notification.create({
                     data: {

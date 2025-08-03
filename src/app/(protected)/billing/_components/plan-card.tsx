@@ -105,7 +105,7 @@ export const PlanCard: FC<PlanCardProps> = ({
 
                     {/* Features */}
                     <div className="space-y-2">
-                        {plan.features.included.slice(0, 5).map((feature, idx) => (
+                        {plan.features.included.slice(0, 8).map((feature, idx) => (
                             <FeatureItem key={idx} feature={feature} included={true} />
                         ))}
                         {plan.features.notIncluded.length > 0 && (
@@ -116,9 +116,9 @@ export const PlanCard: FC<PlanCardProps> = ({
                                 ))}
                             </>
                         )}
-                        {(plan.features.included.length > 5 || plan.features.notIncluded.length > 2) && (
+                        {(plan.features.included.length > 8 || plan.features.notIncluded.length > 2) && (
                             <p className="text-sm text-gray-600 text-center pt-2">
-                                +{plan.features.included.length - 5 + plan.features.notIncluded.length - 2} fitur lainnya
+                                +{plan.features.included.length - 8 + plan.features.notIncluded.length - 2} fitur lainnya
                             </p>
                         )}
                     </div>

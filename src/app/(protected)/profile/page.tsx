@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'nextjs-toploader/app';
 import { motion } from 'framer-motion';
 import { useProfile, useProfileForms } from '@/hooks/use-profile';
 import { Card } from '@/components/ui/card';

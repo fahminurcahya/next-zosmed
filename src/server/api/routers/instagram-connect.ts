@@ -125,6 +125,7 @@ export const instagramConnectRouter = createTRPCRouter({
                 },
             });
 
+            // TODO : NOTIF success connect instagram
             // Create notification for successful connection
             await ctx.db.notification.create({
                 data: {

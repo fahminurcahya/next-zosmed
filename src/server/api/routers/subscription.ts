@@ -1,7 +1,8 @@
-// server/api/routers/subscription.ts
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedAdminProcedure, protectedProcedure, publicProcedure } from "@/server/api/trpc";
+import { SubscriptionNotificationService } from "@/server/services/subscription-notification-service";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+
 
 export const subscriptionRouter = createTRPCRouter({
     // Get current user's subscription plan
@@ -64,55 +65,111 @@ export const subscriptionRouter = createTRPCRouter({
         };
     }),
 
-    // Upgrade plan (placeholder for payment integration)
-    upgradePlan: protectedProcedure
+    // Morning cron job: Process notifications only
+    processMorningNotifications: publicProcedure
         .input(z.object({
-            plan: z.enum(['STARTER', 'PRO']),
+            cronSecret: z.string().optional()
         }))
-        .mutation(async ({ ctx, input }) => {
-            const subscription = await ctx.db.subscription.findUnique({
-                where: { userId: ctx.session.user.id },
-            });
-
-            if (!subscription) {
+        .mutation(async ({ input }) => {
+            // Verify cron secret if provided
+            if (input.cronSecret && input.cronSecret !== process.env.CRON_SECRET) {
                 throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Subscription not found',
+                    code: "UNAUTHORIZED",
+                    message: "Invalid cron secret"
                 });
             }
 
-            // TODO: Integrate with payment provider (Xendit/Midtrans)
-            // For now, just update the plan
-            const planConfig = {
-                STARTER: {
-                    maxAccounts: 3,
-                    maxDMPerMonth: 2000,
-                    hasAIReply: true,
-                    hasAISalesPredictor: false,
-                },
-                PRO: {
-                    maxAccounts: 10,
-                    maxDMPerMonth: 10000,
-                    hasAIReply: true,
-                    hasAISalesPredictor: true,
-                },
-            };
+            const result = await SubscriptionNotificationService.processMorningNotifications();
 
-            const config = planConfig[input.plan];
+            if (!result.success) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: result.error || "Failed to process morning notifications"
+                });
+            }
 
-            const updated = await ctx.db.subscription.update({
-                where: { id: subscription.id },
-                data: {
-                    plan: input.plan,
-                    ...config,
-                    status: 'ACTIVE',
-                    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                },
+            return result;
+        }),
+
+    // Evening cron job: Process status updates only
+    processEveningStatusUpdates: publicProcedure
+        .input(z.object({
+            cronSecret: z.string().optional()
+        }))
+        .mutation(async ({ input }) => {
+            // Verify cron secret if provided
+            if (input.cronSecret && input.cronSecret !== process.env.CRON_SECRET) {
+                throw new TRPCError({
+                    code: "UNAUTHORIZED",
+                    message: "Invalid cron secret"
+                });
+            }
+
+            const result = await SubscriptionNotificationService.processEveningStatusUpdates();
+
+            if (!result.success) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: result.error || "Failed to process evening status updates"
+                });
+            }
+
+            return result;
+        }),
+
+    //Process notifications for current user
+    processMyNotifications: protectedProcedure.mutation(async ({ ctx }) => {
+        const result = await SubscriptionNotificationService.processUserSubscription(ctx.session.user.id);
+
+        if (!result.success) {
+            throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: result.error || "Failed to process user notifications"
             });
+        }
 
-            return {
-                success: true,
-                subscription: updated,
-            };
+        return result;
+    }),
+
+    // Process notifications for specific user (admin only)
+    processUserNotifications: protectedAdminProcedure
+        .input(z.object({
+            userId: z.string()
+        }))
+        .mutation(async ({ ctx, input }) => {
+
+            const result = await SubscriptionNotificationService.processUserSubscription(input.userId);
+
+            if (!result.success) {
+                throw new TRPCError({
+                    code: "INTERNAL_SERVER_ERROR",
+                    message: result.error || "Failed to process user notifications"
+                });
+            }
+
+            return result;
+        }),
+
+
+    // Get subscription status and expiry info
+    getSubscriptionStatus: protectedProcedure.query(async ({ ctx }) => {
+        return await SubscriptionNotificationService.getUserExpiryInfo(ctx.session.user.id);
+    }),
+
+    // Get subscription status for specific user (admin only)
+    getUserSubscriptionStatus: protectedProcedure
+        .input(z.object({
+            userId: z.string()
+        }))
+        .query(async ({ ctx, input }) => {
+            // Check if user has admin role
+            if (ctx.session.user.role !== 'admin') {
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "Admin access required"
+                });
+            }
+
+            return await SubscriptionNotificationService.getUserExpiryInfo(input.userId);
         }),
 });

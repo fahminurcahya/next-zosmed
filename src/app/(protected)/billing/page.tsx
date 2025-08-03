@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     Card,
     CardContent,
-    CardDescription,
     CardFooter,
     CardHeader,
     CardTitle,
@@ -13,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
     TableBody,
@@ -33,25 +33,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
     CreditCard,
-    Calendar,
     AlertCircle,
-    Download,
     Zap,
     RefreshCw,
     XCircle,
     CheckCircle,
     Clock,
     Loader2,
-    DollarSign,
     FileText,
-    TrendingUp,
-    MoreHorizontal,
-    Settings,
-    AlertTriangle,
     Info,
-    Plus,
 } from "lucide-react";
-import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -60,15 +51,99 @@ import { UsageCard } from "./_components";
 import { usePaymentHistory, useRecurringHistory, useSubscription, useSubscriptionActions } from "@/hooks/billing-hook";
 import RecurringStatusCard from "./_components/recurring-status-card";
 import EnableRecurringDialog from "./_components/enable-recurring-dialog";
-import { boolean } from "zod";
 import { usePaymentMethods } from "@/hooks/payment-method-hook";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useRouter } from 'nextjs-toploader/app';
 
-type SubscriptionAction =
-    | { type: "CANCEL"; reason?: string; feedback?: string }
-    | { type: "RESUME" }
-    | { type: "UPGRADE"; planId: string; discountCode?: string }
+
+
+// Loading Skeleton Components
+const SubscriptionCardSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-16" />
+            </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div>
+                <Skeleton className="h-8 w-40 mb-2" />
+                <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="space-y-2">
+                <div className="flex justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-3 w-32" />
+            </div>
+        </CardContent>
+        <CardFooter>
+            <Skeleton className="h-10 w-full" />
+        </CardFooter>
+    </Card>
+);
+
+const UsageCardSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="h-8 w-8 rounded-lg" />
+                            <Skeleton className="h-4 w-24" />
+                        </div>
+                        <Skeleton className="h-4 w-16" />
+                    </div>
+                    <Skeleton className="h-2 w-full" />
+                    <div className="flex justify-between">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-20" />
+                    </div>
+                </div>
+            ))}
+        </CardContent>
+    </Card>
+);
+
+const TableSkeleton = () => (
+    <div className="space-y-4">
+        <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center space-x-4 p-4">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-8 w-8 ml-auto" />
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+// Animation variants
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1,
+            delayChildren: 0.2
+        }
+    }
+};
 
 export default function BillingDashboardPage() {
+    const isDevelopmentmode = process.env.NODE_ENV === 'development'
+    const isRecuring = process.env.CONFIG_RECURRING || false
     const router = useRouter();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [cancelReason, setCancelReason] = useState("");
@@ -82,13 +157,10 @@ export default function BillingDashboardPage() {
 
     const {
         payments,
-        stats,
         hasMore,
         isLoading: paymentsLoading,
-        isError: paymentsError,
         loadMore,
         refresh: refreshPayments,
-        page
     } = usePaymentHistory({ limit: 10 });
 
     const {
@@ -108,6 +180,7 @@ export default function BillingDashboardPage() {
                 feedback: cancelFeedback,
             });
             setShowCancelDialog(false);
+            toast.success("Subscription cancelled successfully");
         } catch (error) {
             // Error is already handled by the hook
         }
@@ -118,6 +191,7 @@ export default function BillingDashboardPage() {
             await handleAction({
                 type: "RESUME",
             });
+            toast.success("Subscription resumed successfully");
         } catch (error) {
             // Error is already handled by the hook
         }
@@ -142,569 +216,713 @@ export default function BillingDashboardPage() {
         );
     };
 
-    const getPaymentMethodDisplay = (method: any) => {
-        if (method.type === 'CREDIT_CARD') {
-            return `${method.brand} •••• ${method.lastFour}`;
-        }
-        return method.type.replace('_', ' ');
-    };
-
     if (subLoading || paymentMethodsLoading) {
         return (
-            <div className="flex justify-center items-center min-h-[60vh]">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
+            <motion.div
+                className="container mx-auto p-6 space-y-8"
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+            >
+                {/* Header Skeleton */}
+                <motion.div className="flex justify-between items-start">
+                    <div>
+                        <Skeleton className="h-9 w-64 mb-2" />
+                        <Skeleton className="h-4 w-80" />
+                    </div>
+                    <Skeleton className="h-10 w-40" />
+                </motion.div>
+
+                {/* Cards Skeleton */}
+                <motion.div className="grid gap-6 md:grid-cols-2">
+                    <SubscriptionCardSkeleton />
+                    <UsageCardSkeleton />
+                </motion.div>
+
+                {/* Table Skeleton */}
+                <motion.div>
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <Skeleton className="h-6 w-32" />
+                                <div className="flex gap-2">
+                                    <Skeleton className="h-8 w-32" />
+                                    <Skeleton className="h-8 w-32" />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <TableSkeleton />
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </motion.div>
         );
     }
 
     return (
-        <div className="container mx-auto p-6 space-y-8">
+        <motion.div
+            className="container mx-auto p-6 space-y-8"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+        >
             {/* Header */}
-            <div className="flex justify-between items-start">
+            <motion.div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold mb-2">Billing & Subscription</h1>
                     <p className="text-gray-600">
                         Manage your subscription and view payment history
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={() => router.push("/billing/payment-method")}
-                    className="flex items-center gap-2"
-                >
-                    <CreditCard className="h-4 w-4" />
-                    Payment Methods
-                </Button>
-            </div>
-
-            {/* Payment Method Warning for Non-Free Plans */}
-            {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && (
-                <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="flex items-center justify-between">
-                        <span>
-                            No active payment method found. Add a payment method to ensure uninterrupted service and enable recurring payments.
-                        </span>
+                {isRecuring && (
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
                         <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => router.push("/billing/payment-method")}
-                            className="ml-4 bg-white text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => router.push("/billing/payment-methods")}
+                            className="flex items-center gap-2"
                         >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add Payment Method
+                            <CreditCard className="h-4 w-4" />
+                            Payment Methods
                         </Button>
-                    </AlertDescription>
-                </Alert>
-            )}
+                    </motion.div>
+                )}
+            </motion.div>
 
             {/* Current Subscription */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            Current Plan
-                            <div className="flex items-center gap-2">
-                                {subscription?.isActive && (
-                                    <Badge variant="success">Active</Badge>
-                                )}
-                                {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && (
-                                    <Badge variant="destructive" className="flex items-center gap-1">
-                                        <AlertCircle className="h-3 w-3" />
-                                        No Payment Method
-                                    </Badge>
-                                )}
-                            </div>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {subscription ? (
-                            <>
-                                <div>
-                                    <h3 className="text-2xl font-bold">
-                                        {subscription.planDisplayName || subscription.plan}
-                                    </h3>
-                                    <p className="text-gray-600">
-                                        Rp {subscription.price.toLocaleString("id-ID") || 0}/month
-                                    </p>
+            <motion.div className="grid gap-6 md:grid-cols-2">
+                <motion.div
+                    whileHover={{ y: -4 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                Current Plan
+                                <div className="flex items-center gap-2">
+                                    <AnimatePresence>
+                                        {subscription?.isActive && (
+                                            <motion.div
+                                                initial={{ scale: 0, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                exit={{ scale: 0, opacity: 0 }}
+                                            >
+                                                <Badge variant="success">Active</Badge>
+                                            </motion.div>
+                                        )}
+                                        {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && isRecuring && (
+                                            <motion.div
+                                                initial={{ scale: 0, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                exit={{ scale: 0, opacity: 0 }}
+                                            >
+                                                <Badge variant="destructive" className="flex items-center gap-1">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    No Payment Method
+                                                </Badge>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-
-                                {subscription.currentPeriodEnd && (
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {subscription ? (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                >
                                     <div>
-                                        <div className="flex justify-between text-sm mb-2">
-                                            <span>Billing cycle</span>
-                                            <span>{subscription.daysRemaining} days remaining</span>
-                                        </div>
-                                        <Progress
-                                            value={
-                                                ((30 - (subscription.daysRemaining || 0)) / 30) * 100
-                                            }
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Renews on {format(new Date(subscription.currentPeriodEnd), "dd MMM yyyy", { locale: id })}
+                                        <h3 className="text-2xl font-bold">
+                                            {subscription.planDisplayName || subscription.plan}
+                                        </h3>
+                                        <p className="text-gray-600">
+                                            Rp {subscription.price.toLocaleString("id-ID") || 0}/month
                                         </p>
                                     </div>
-                                )}
 
-                                {subscription.cancelAtPeriodEnd && (
-                                    <Alert variant="destructive">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <AlertDescription>
-                                            Your subscription will end on{" "}
-                                            {format(new Date(subscription.currentPeriodEnd!), "dd MMM yyyy", { locale: id })}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-                            </>
-                        ) : (
-                            <div className="text-center py-8">
-                                <p className="text-gray-600 mb-4">No active subscription</p>
-                                <Button onClick={() => router.push("/pricing")}>
-                                    View Plans
-                                </Button>
-                            </div>
-                        )}
-                    </CardContent>
-                    {subscription && (
-                        <CardFooter className="flex gap-2">
-                            {subscription.cancelAtPeriodEnd ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={handleResumeSubscription}
-                                    disabled={isProcessing}
-                                    className="flex-1"
-                                >
-                                    {isProcessing ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                    {subscription.currentPeriodEnd && (
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-2">
+                                                <span>Billing cycle</span>
+                                                <span>{subscription.daysRemaining} days remaining</span>
+                                            </div>
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: "100%" }}
+                                                transition={{ delay: 0.5, duration: 0.8 }}
+                                            >
+                                                <Progress
+                                                    value={
+                                                        ((30 - (subscription.daysRemaining || 0)) / 30) * 100
+                                                    }
+                                                />
+                                            </motion.div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Renews on {format(new Date(subscription.currentPeriodEnd), "dd MMM yyyy", { locale: id })}
+                                            </p>
+                                        </div>
                                     )}
-                                    Resume Subscription
-                                </Button>
+
+                                    <AnimatePresence>
+                                        {subscription.cancelAtPeriodEnd && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                            >
+                                                <Alert variant="destructive">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <AlertDescription>
+                                                        Your subscription will end on{" "}
+                                                        {format(new Date(subscription.currentPeriodEnd!), "dd MMM yyyy", { locale: id })}
+                                                    </AlertDescription>
+                                                </Alert>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
                             ) : (
-                                <>
-                                    <Button
-                                        onClick={() => router.push("/billing/upgrade")}
-                                        className="flex-1"
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-center py-8"
+                                >
+                                    <p className="text-gray-600 mb-4">No active subscription</p>
+                                    <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
                                     >
-                                        <Zap className="mr-2 h-4 w-4" />
-                                        Upgrade Plan
-                                    </Button>
-                                    {subscription.planDisplayName.toLowerCase() !== "free".toLowerCase() &&
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setShowCancelDialog(true)}
-                                        >
-                                            Cancel
+                                        <Button onClick={() => router.push("/pricing")}>
+                                            View Plans
                                         </Button>
-                                    }
-                                </>
+                                    </motion.div>
+                                </motion.div>
                             )}
-                        </CardFooter>
-                    )}
-                </Card>
+                        </CardContent>
+                        {subscription && (
+                            <CardFooter className="flex gap-2">
+                                <AnimatePresence mode="wait">
+                                    {subscription.cancelAtPeriodEnd ? (
+                                        <motion.div
+                                            key="resume"
+                                            initial="enter"
+                                            animate="center"
+                                            exit="exit"
+                                            className="flex-1"
+                                        >
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleResumeSubscription}
+                                                disabled={isProcessing}
+                                                className="w-full"
+                                            >
+                                                {isProcessing ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                                )}
+                                                Resume Subscription
+                                            </Button>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="actions"
+                                            initial="enter"
+                                            animate="center"
+                                            exit="exit"
+                                            className="flex gap-2 flex-1"
+                                        >
+                                            <motion.div
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                className="flex-1"
+                                            >
+                                                <Button
+                                                    onClick={() => router.push("/billing/upgrade")}
+                                                    className="w-full"
+                                                >
+                                                    <Zap className="mr-2 h-4 w-4" />
+                                                    Upgrade Plan
+
+                                                </Button>
+                                            </motion.div>
+                                            {subscription.planDisplayName.toLowerCase() !== "free".toLowerCase() && (
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                >
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => setShowCancelDialog(true)}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </motion.div>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {isDevelopmentmode && (
+                                    <motion.div
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                    >
+                                        <Button
+                                            variant="secondary"
+                                            onClick={async () => {
+                                                try {
+                                                    await handleAction({
+                                                        type: "FREE",
+                                                    });
+                                                    toast.success("Successfully changed to Free plan");
+                                                } catch (error) {
+                                                    toast.error("Failed to change to Free plan");
+                                                }
+                                            }}
+                                            disabled={isProcessing}
+                                            className="text-xs px-2"
+                                        >
+                                            {isProcessing ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                                "→ Free"
+                                            )}
+                                        </Button>
+                                    </motion.div>
+                                )}
+                            </CardFooter>
+                        )}
+                    </Card>
+                </motion.div>
 
                 {/* Usage Stats */}
                 {subscription && usage && (
-                    <UsageCard
-                        subscription={subscription}
-                        usage={usage}
-                    />
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                        <UsageCard
+                            subscription={subscription}
+                            usage={usage}
+                        />
+                    </motion.div>
                 )}
-            </div>
+            </motion.div>
 
-            {/* Payment Method Management Card */}
-            {subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <CreditCard className="h-5 w-5" />
-                                Payment Methods
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push("/billing/payment-method")}
+            {/* Recurring Status Card - Only show for non-free plans */}
+            {subscription?.planDisplayName.toLowerCase() !== "free".toLowerCase() && isRecuring && (
+                <motion.div>
+                    <AnimatePresence>
+                        {!hasActiveMethod && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
                             >
-                                <Settings className="h-4 w-4 mr-2" />
-                                Manage
-                            </Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {hasActiveMethod ? (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 border rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <CreditCard className="h-5 w-5 text-blue-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">
-                                                {defaultMethod ? getPaymentMethodDisplay(defaultMethod) : 'Default Payment Method'}
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                                {paymentMethods.length} payment method{paymentMethods.length !== 1 ? 's' : ''} available
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Badge variant="success">Active</Badge>
-                                </div>
                                 <Alert>
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
-                                        Recurring payments require an active payment method. Your current method will be used for automatic renewals.
+                                        <strong>About Recurring Payments:</strong> To enable automatic recurring payments, you need to add a payment method first.
+                                        This ensures your subscription continues uninterrupted without manual payments each month.
                                     </AlertDescription>
                                 </Alert>
-                            </div>
-                        ) : (
-                            <div className="text-center py-8">
-                                <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <CreditCard className="h-6 w-6 text-gray-400" />
-                                </div>
-                                <h3 className="font-medium mb-2">No Payment Methods</h3>
-                                <p className="text-sm text-gray-500 mb-4">
-                                    Add a payment method to enable recurring payments and ensure uninterrupted service.
-                                </p>
-                                <Button
-                                    onClick={() => router.push("/billing/payment-method")}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Add Payment Method
-                                </Button>
-                            </div>
+                            </motion.div>
                         )}
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Recurring Status Card - Only show for non-free plans */}
-            {subscription?.planDisplayName.toLowerCase() !== "free".toLowerCase() && (
-                <>
-                    <RecurringStatusCard onOpenChange={setShowEnableDialog} />
-
-                    {/* Recurring Payment Info */}
-                    {!hasActiveMethod && (
-                        <Alert>
-                            <Info className="h-4 w-4" />
-                            <AlertDescription>
-                                <strong>About Recurring Payments:</strong> To enable automatic recurring payments, you need to add a payment method first.
-                                This ensures your subscription continues uninterrupted without manual payments each month.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                </>
-            )}
-
-            {/* Payment Statistics */}
-            {stats && (
-                <div className="grid gap-4 md:grid-cols-3">
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <FileText className="h-4 w-4 text-blue-600" />
-                                <p className="text-sm font-medium text-gray-500">Total Payments</p>
-                            </div>
-                            <p className="text-2xl font-bold">{stats.count}</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                                <p className="text-sm font-medium text-gray-500">Success Rate</p>
-                            </div>
-                            <p className="text-2xl font-bold">{Math.round(stats.successRate)}%</p>
-                            <p className="text-xs text-gray-500">
-                                {stats.successful} of {stats.count} payments
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <Clock className="h-4 w-4 text-orange-600" />
-                                <p className="text-sm font-medium text-gray-500">Status Overview</p>
-                            </div>
-                            <div className="space-y-1 mt-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-green-600">Success: {stats.successful}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-orange-600">Pending: {stats.pending}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-red-600">Failed: {stats.failed}</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                    </AnimatePresence>
+                    <motion.div
+                        whileHover={{ y: -2 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                        <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+                    </motion.div>
+                </motion.div>
             )}
 
             {/* Payment History with Tabs */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        <span>Payment History</span>
-                        <div className="flex gap-2">
-                            <Button
-                                variant={activeTab === "payments" ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setActiveTab("payments")}
-                            >
-                                One-time Payments
-                            </Button>
-                            <Button
-                                variant={activeTab === "recurring" ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setActiveTab("recurring")}
-                            >
-                                Recurring History
-                            </Button>
-                        </div>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {activeTab === "payments" ? (
-                        // One-time Payments Table
-                        <>
-                            {payments.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Plan</TableHead>
-                                            <TableHead>Amount</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {payments.map((payment) => (
-                                            <TableRow key={payment.id}>
-                                                <TableCell>
-                                                    {format(payment.createdAt, "dd MMM yyyy")}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {payment.planName || "N/A"}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {new Intl.NumberFormat("id-ID", {
-                                                        style: "currency",
-                                                        currency: "IDR",
-                                                        minimumFractionDigits: 0,
-                                                    }).format(payment.amount)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {getStatusBadge(payment.status)}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {payment.invoiceUrl && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                window.open(
-                                                                    payment.invoiceUrl!,
-                                                                    "_blank"
-                                                                )
-                                                            }
-                                                        >
-                                                            <FileText className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-600 mb-4">No payment history found</p>
-                                    {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+            <motion.div>
+                <motion.div
+                    whileHover={{ y: -2 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                <span>Payment History</span>
+                                <div className="flex gap-2">
+                                    <motion.div
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                    >
                                         <Button
-                                            variant="outline"
-                                            onClick={() => router.push("/billing/payment-method")}
+                                            variant={activeTab === "payments" ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setActiveTab("payments")}
                                         >
-                                            <CreditCard className="mr-2 h-4 w-4" />
-                                            Add Payment Method
+                                            One-time Payments
                                         </Button>
+                                    </motion.div>
+                                    {isRecuring && (
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <Button
+                                                variant={activeTab === "recurring" ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setActiveTab("recurring")}
+                                            >
+                                                Recurring History
+                                            </Button>
+                                        </motion.div>
                                     )}
                                 </div>
-                            )}
-                            {hasMore && (
-                                <div className="mt-4 text-center">
-                                    <Button
-                                        variant="outline"
-                                        onClick={loadMore}
-                                        disabled={paymentsLoading}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <AnimatePresence mode="wait">
+                                {activeTab === "payments" ? (
+                                    <motion.div
+                                        key="payments"
+                                        initial="enter"
+                                        animate="center"
+                                        exit="exit"
                                     >
                                         {paymentsLoading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <TableSkeleton />
+                                        ) : payments.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Plan</TableHead>
+                                                        <TableHead>Amount</TableHead>
+                                                        <TableHead>Status</TableHead>
+                                                        <TableHead className="text-right">Actions</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {payments.map((payment, index) => (
+                                                        <motion.tr
+                                                            key={payment.id}
+                                                            initial={{ opacity: 0, y: 20 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            transition={{ delay: index * 0.1 }}
+                                                            className="hover:bg-gray-50"
+                                                        >
+                                                            <TableCell>
+                                                                {format(payment.createdAt, "dd MMM yyyy")}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {payment.planName || "N/A"}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {new Intl.NumberFormat("id-ID", {
+                                                                    style: "currency",
+                                                                    currency: "IDR",
+                                                                    minimumFractionDigits: 0,
+                                                                }).format(payment.amount)}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {getStatusBadge(payment.status)}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {payment.invoiceUrl && (
+                                                                    <motion.div
+                                                                        whileHover={{ scale: 1.1 }}
+                                                                        whileTap={{ scale: 0.9 }}
+                                                                    >
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() =>
+                                                                                window.open(
+                                                                                    payment.invoiceUrl!,
+                                                                                    "_blank"
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <FileText className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </motion.div>
+                                                                )}
+                                                            </TableCell>
+                                                        </motion.tr>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
                                         ) : (
-                                            "Load More"
-                                        )}
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        // Recurring Cycles Table
-                        <>
-                            {cycles.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Scheduled Date</TableHead>
-                                            <TableHead>Cycle #</TableHead>
-                                            <TableHead>Amount</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Processed</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {cycles.map((cycle) => (
-                                            <TableRow key={cycle.cycleId}>
-                                                <TableCell>
-                                                    {format(new Date(cycle.scheduledAt), "dd MMM yyyy")}
-                                                </TableCell>
-                                                <TableCell>
-                                                    #{cycle.cycleNumber}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {new Intl.NumberFormat("id-ID", {
-                                                        style: "currency",
-                                                        currency: "IDR",
-                                                        minimumFractionDigits: 0,
-                                                    }).format(cycle.amount)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {getStatusBadge(
-                                                        cycle.status === 'SUCCEEDED' ? 'SUCCESS' : cycle.status
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {cycle.succeededAt && (
-                                                        <span className="text-sm text-muted-foreground">
-                                                            {format(new Date(cycle.succeededAt), "dd MMM")}
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-600 mb-4">No recurring payment history found</p>
-                                    {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
-                                        <div className="mt-4">
-                                            <p className="text-sm text-gray-500 mb-3">
-                                                Set up a payment method to enable automatic recurring payments
-                                            </p>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => router.push("/billing/payment-method")}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="text-center py-8"
                                             >
-                                                <CreditCard className="mr-2 h-4 w-4" />
-                                                Add Payment Method
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {hasMoreCycles && (
-                                <div className="mt-4 text-center">
-                                    <Button
-                                        variant="outline"
-                                        onClick={loadMoreCycles}
-                                        disabled={cyclesLoading}
+                                                <p className="text-gray-600 mb-4">No payment history found</p>
+                                                {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+                                                    <motion.div
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                    >
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() => router.push("/billing/payment-method")}
+                                                        >
+                                                            <CreditCard className="mr-2 h-4 w-4" />
+                                                            Add Payment Method
+                                                        </Button>
+                                                    </motion.div>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                        {hasMore && (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="mt-4 text-center"
+                                            >
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                >
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={loadMore}
+                                                        disabled={paymentsLoading}
+                                                    >
+                                                        {paymentsLoading ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            "Load More"
+                                                        )}
+                                                    </Button>
+                                                </motion.div>
+                                            </motion.div>
+                                        )}
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="recurring"
+                                        initial="enter"
+                                        animate="center"
+                                        exit="exit"
                                     >
                                         {cyclesLoading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <TableSkeleton />
+                                        ) : cycles.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Scheduled Date</TableHead>
+                                                        <TableHead>Cycle #</TableHead>
+                                                        <TableHead>Amount</TableHead>
+                                                        <TableHead>Status</TableHead>
+                                                        <TableHead className="text-right">Processed</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {cycles.map((cycle, index) => (
+                                                        <motion.tr
+                                                            key={cycle.cycleId}
+                                                            initial={{ opacity: 0, y: 20 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            transition={{ delay: index * 0.1 }}
+                                                            className="hover:bg-gray-50"
+                                                        >
+                                                            <TableCell>
+                                                                {format(new Date(cycle.scheduledAt), "dd MMM yyyy")}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                #{cycle.cycleNumber}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {new Intl.NumberFormat("id-ID", {
+                                                                    style: "currency",
+                                                                    currency: "IDR",
+                                                                    minimumFractionDigits: 0,
+                                                                }).format(cycle.amount)}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {getStatusBadge(
+                                                                    cycle.status === 'SUCCEEDED' ? 'SUCCESS' : cycle.status
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                {cycle.succeededAt && (
+                                                                    <span className="text-sm text-muted-foreground">
+                                                                        {format(new Date(cycle.succeededAt), "dd MMM")}
+                                                                    </span>
+                                                                )}
+                                                            </TableCell>
+                                                        </motion.tr>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
                                         ) : (
-                                            "Load More"
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="text-center py-8"
+                                            >
+                                                <p className="text-gray-600 mb-4">No recurring payment history found</p>
+                                                {!hasActiveMethod && subscription && subscription.planDisplayName.toLowerCase() !== "free" && (
+                                                    <div className="mt-4">
+                                                        <p className="text-sm text-gray-500 mb-3">
+                                                            Set up a payment method to enable automatic recurring payments
+                                                        </p>
+                                                        <motion.div
+                                                            whileHover={{ scale: 1.02 }}
+                                                            whileTap={{ scale: 0.98 }}
+                                                        >
+                                                            <Button
+                                                                variant="outline"
+                                                                onClick={() => router.push("/billing/payment-method")}
+                                                            >
+                                                                <CreditCard className="mr-2 h-4 w-4" />
+                                                                Add Payment Method
+                                                            </Button>
+                                                        </motion.div>
+                                                    </div>
+                                                )}
+                                            </motion.div>
                                         )}
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+                                        {hasMoreCycles && (
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="mt-4 text-center"
+                                            >
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                >
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={loadMoreCycles}
+                                                        disabled={cyclesLoading}
+                                                    >
+                                                        {cyclesLoading ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            "Load More"
+                                                        )}
+                                                    </Button>
+                                                </motion.div>
+                                            </motion.div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </motion.div>
 
             {/* Cancel Subscription Dialog */}
-            <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Cancel Subscription</DialogTitle>
-                        <DialogDescription>
-                            We're sorry to see you go. Your subscription will remain active until the end of the current billing period.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                        <div>
-                            <Label>Why are you cancelling? (optional)</Label>
-                            <select
-                                className="w-full mt-2 p-2 border rounded-md"
-                                value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
+            <AnimatePresence>
+                {showCancelDialog && (
+                    <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                        <DialogContent asChild>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             >
-                                <option value="">Select a reason</option>
-                                <option value="too_expensive">Too expensive</option>
-                                <option value="not_using">Not using enough</option>
-                                <option value="missing_features">Missing features</option>
-                                <option value="switching_competitor">Switching to competitor</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
+                                <div className="sm:max-w-[425px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Cancel Subscription</DialogTitle>
+                                        <DialogDescription>
+                                            We're sorry to see you go. Your subscription will remain active until the end of the current billing period.
+                                        </DialogDescription>
+                                    </DialogHeader>
 
-                        <div>
-                            <Label>Any feedback for us? (optional)</Label>
-                            <Textarea
-                                value={cancelFeedback}
-                                onChange={(e) => setCancelFeedback(e.target.value)}
-                                placeholder="Let us know how we can improve..."
-                                rows={4}
-                                className="mt-2"
-                            />
-                        </div>
-                    </div>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.1 }}
+                                        className="space-y-4 py-4"
+                                    >
+                                        <div>
+                                            <Label>Why are you cancelling? (optional)</Label>
+                                            <motion.select
+                                                whileFocus={{ scale: 1.01 }}
+                                                className="w-full mt-2 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                value={cancelReason}
+                                                onChange={(e) => setCancelReason(e.target.value)}
+                                            >
+                                                <option value="">Select a reason</option>
+                                                <option value="too_expensive">Too expensive</option>
+                                                <option value="not_using">Not using enough</option>
+                                                <option value="missing_features">Missing features</option>
+                                                <option value="switching_competitor">Switching to competitor</option>
+                                                <option value="other">Other</option>
+                                            </motion.select>
+                                        </div>
 
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowCancelDialog(false)}
-                        >
-                            Keep Subscription
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleCancelSubscription}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Cancelling...
-                                </>
-                            ) : (
-                                "Cancel Subscription"
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                                        <div>
+                                            <Label>Any feedback for us? (optional)</Label>
+                                            <motion.div
+                                                whileFocus={{ scale: 1.01 }}
+                                            >
+                                                <Textarea
+                                                    value={cancelFeedback}
+                                                    onChange={(e) => setCancelFeedback(e.target.value)}
+                                                    placeholder="Let us know how we can improve..."
+                                                    rows={4}
+                                                    className="mt-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                />
+                                            </motion.div>
+                                        </div>
+                                    </motion.div>
+
+                                    <DialogFooter className="gap-2">
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setShowCancelDialog(false)}
+                                            >
+                                                Keep Subscription
+                                            </Button>
+                                        </motion.div>
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <Button
+                                                variant="destructive"
+                                                onClick={handleCancelSubscription}
+                                                disabled={isProcessing}
+                                            >
+                                                {isProcessing ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Cancelling...
+                                                    </>
+                                                ) : (
+                                                    "Cancel Subscription"
+                                                )}
+                                            </Button>
+                                        </motion.div>
+                                    </DialogFooter>
+                                </div>
+                            </motion.div>
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </AnimatePresence>
+
             <EnableRecurringDialog
                 open={showEnableDialog}
                 onOpenChange={setShowEnableDialog}
             />
-        </div>
+        </motion.div>
     );
 }

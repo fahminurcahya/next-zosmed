@@ -35,7 +35,7 @@ export interface RecurringStatus {
 }
 
 export interface RecurringAction {
-    type: 'ENABLE' | 'DISABLE' | 'PAUSE' | 'RESUME';
+    type: 'ENABLE' | 'DISABLE' | 'PAUSE' | 'RESUME' | 'FREE';
     planId?: string;
 }
 
@@ -300,6 +300,22 @@ export function useSubscriptionActions() {
         },
     });
 
+    const upgradeWithSavedMethod = api.billing.upgradeWithSavedMethod.useMutation({
+        onSuccess: (data) => {
+            // if (data.activationUrl) {
+            //     toast.success("Redirecting to complete payment...");
+            //     window.location.href = data.activationUrl;
+            // } else {
+            //     toast.success("Upgrade successful with saved payment method!");
+            //     utils.billing.getCurrentSubscription.invalidate();
+            //     utils.billing.getRecurringStatus.invalidate();
+            // }
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to upgrade with saved method");
+        },
+    });
+
 
     const cancel = api.billing.cancelSubscription.useMutation({
         onSuccess: (data) => {
@@ -313,6 +329,19 @@ export function useSubscriptionActions() {
         },
         onError: (error) => {
             toast.error(error.message || "Failed to cancel subscription");
+        },
+    });
+
+    const free = api.billing.freeSubscribtion.useMutation({
+        onSuccess: (data) => {
+            toast.success(
+                "Change successfully"
+            );
+            utils.billing.getCurrentSubscription.invalidate();
+            utils.billing.getRecurringStatus.invalidate();
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to change subscription");
         },
     });
 
@@ -359,8 +388,32 @@ export function useSubscriptionActions() {
             case "UPGRADE":
                 const upgradeAction = action as SubscriptionAction & { type: "UPGRADE" };
                 const enableRecurring = localStorage.getItem('preferRecurring') === 'true';
-                setIsEnablingRecurring(enableRecurring);
+                const selectedPaymentMethod = sessionStorage.getItem('selectedPaymentMethod');
 
+                if (selectedPaymentMethod) {
+                    const paymentMethod = JSON.parse(selectedPaymentMethod);
+                    sessionStorage.removeItem('selectedPaymentMethod');
+
+                    if (paymentMethod.type === 'saved_method') {
+                        // Use saved payment method for upgrade
+                        return upgradeWithSavedMethod.mutateAsync({
+                            planId: upgradeAction.planId,
+                            discountCode: upgradeAction.discountCode,
+                            paymentMethodId: paymentMethod.methodId,
+                            enableRecurring,
+                        });
+                    } else if (paymentMethod.type === 'one_time_channel') {
+                        // Use selected channels for one-time payment
+                        setIsEnablingRecurring(enableRecurring);
+                        return createInvoice.mutateAsync({
+                            planId: upgradeAction.planId,
+                            discountCode: upgradeAction.discountCode,
+                            enableRecurring,
+                            paymentMethod: paymentMethod.channelCode,
+                        });
+                    }
+                }
+                setIsEnablingRecurring(enableRecurring);
                 return createInvoice.mutateAsync({
                     planId: upgradeAction.planId,
                     discountCode: upgradeAction.discountCode,
@@ -371,7 +424,8 @@ export function useSubscriptionActions() {
                     reason: action.reason,
                     feedback: action.feedback,
                 });
-
+            case "FREE":
+                return free.mutateAsync();
             case "RESUME":
                 return resume.mutateAsync();
             case "ENABLE":
@@ -390,7 +444,7 @@ export function useSubscriptionActions() {
             case "PAUSE":
                 return pauseRecurring.mutateAsync();
         }
-    }, [createInvoice, cancel, resume, pauseRecurring, resumeRecurring]);
+    }, [createInvoice, upgradeWithSavedMethod, cancel, resume, pauseRecurring, resumeRecurring]);
 
     const handleRecurringToggle = useCallback(async (enabled: boolean, planId?: string) => {
         if (enabled && planId) {
@@ -404,6 +458,7 @@ export function useSubscriptionActions() {
         handleAction,
         handleRecurringToggle,
         createInvoice: createInvoice.mutateAsync,
+        upgradeWithSavedMethod: upgradeWithSavedMethod.mutateAsync,
         cancel: cancel.mutateAsync,
         resume: resume.mutateAsync,
         pauseRecurring: pauseRecurring.mutateAsync,

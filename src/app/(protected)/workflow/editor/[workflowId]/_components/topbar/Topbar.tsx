@@ -2,7 +2,7 @@
 import TooltipWrapper from "@/components/global/tooltip-wrapper";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from 'nextjs-toploader/app';
 import React from "react";
 import UnpublishBtn from "./UnpublishBtn";
 import SaveBtn from "./SaveBtn";

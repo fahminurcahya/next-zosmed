@@ -20,7 +20,7 @@ export class UserService {
                 });
             }
 
-            const subscription = await tx.subscription.create({
+            await tx.subscription.create({
                 data: {
                     userId,
                     plan: 'FREE',
@@ -44,8 +44,59 @@ export class UserService {
                     channel: 'email'
                 }
             });
+        });
+    }
 
-            return subscription;
+    async changeToFreePlan(userId: string) {
+        return await db.$transaction(async (tx) => {
+            const freePlan = await tx.pricingPlan.findFirst({
+                where: {
+                    name: 'FREE',
+                    isActive: true
+                }
+            });
+
+            if (!freePlan) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Free plan not found. Please contact support.",
+                });
+            }
+
+            await tx.subscription.upsert({
+                where: { userId: userId },
+                create: {
+                    userId,
+                    plan: 'FREE',
+                    pricingPlanId: freePlan.id,
+                    status: 'ACTIVE',
+                    maxAccounts: freePlan.maxAccounts,
+                    maxDMPerMonth: freePlan.maxDMPerMonth,
+                    currentDMCount: freePlan.maxDMPerMonth,
+                    maxAIReplyPerMonth: freePlan.maxAIReplyPerMonth,
+                    currentAICount: freePlan.maxAIReplyPerMonth,
+                    hasAIReply: freePlan.maxAIReplyPerMonth > 0,
+                    currentPeriodStart: new Date(),
+                    currentPeriodEnd: null,
+                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+                update: {
+                    userId,
+                    plan: 'FREE',
+                    pricingPlanId: freePlan.id,
+                    status: 'ACTIVE',
+                    maxAccounts: freePlan.maxAccounts,
+                    maxDMPerMonth: freePlan.maxDMPerMonth,
+                    currentDMCount: freePlan.maxDMPerMonth,
+                    maxAIReplyPerMonth: freePlan.maxAIReplyPerMonth,
+                    currentAICount: freePlan.maxAIReplyPerMonth,
+                    hasAIReply: freePlan.maxAIReplyPerMonth > 0,
+                    currentPeriodStart: new Date(),
+                    currentPeriodEnd: null,
+                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                },
+                include: { pricingPlan: true }
+            });
         });
     }
 }

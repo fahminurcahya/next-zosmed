@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { AdditionalFeatures, Benefits, BetaBenefits, Faqs, LegalLinks, MainFeatures, Plans, Platforms, Problems, ProductLinks, Solutions, SupportLinks } from '@/data/metadata';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 
 

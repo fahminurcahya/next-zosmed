@@ -16,4 +16,3 @@ export const INTEGRATION_CARDS: Props[] = [
     }
 ];
 
-export const FEE = 5000;

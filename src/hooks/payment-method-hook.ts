@@ -130,20 +130,15 @@ export function usePaymentChannels() {
         const getChannelLogo = (channelCode: string): string => {
             const logoMap: Record<string, string> = {
                 'OVO': '🟣',
-                'ID_OVO': '🟣',
                 'DANA': '🔵',
-                'ID_DANA': '🔵',
                 'SHOPEEPAY': '🟠',
-                'ID_SHOPEEPAY': '🟠',
                 'LINKAJA': '🔴',
-                'ID_LINKAJA': '🔴',
                 'BCA': '🔵',
                 'BNI': '🟠',
                 'BRI': '🔵',
                 'MANDIRI': '🟡',
                 'PERMATA': '🟢',
                 'QRIS': '📱',
-                'ID_QRIS': '📱',
                 'BCA_ONEKLIK': '🏦',
                 'CARD': '💳'
             };
@@ -157,7 +152,7 @@ export function usePaymentChannels() {
                 code: ch.xenditChannelCode || ch.channelCode,
                 name: ch.channelName,
                 logo: getChannelLogo(ch.xenditChannelCode || ch.channelCode),
-                requiresPhoneNumber: ['ID_OVO', 'ID_LINKAJA'].includes(ch.xenditChannelCode || ''),
+                requiresPhoneNumber: ['OVO', 'LINKAJA'].includes(ch.xenditChannelCode || ''),
             }));
 
         const directDebitChannels = channelData

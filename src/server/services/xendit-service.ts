@@ -93,7 +93,6 @@ export const xenditService = {
             referenceId: user.id,
             givenNames: params.customer?.givenNames || user.name,
             email: params.customer?.email || user.email,
-            mobileNumber: params.customer!.mobileNumber!,
         });
 
         // Create invoice reference
@@ -497,9 +496,12 @@ export const xenditService = {
                 plan: payment.plan?.name as any,
                 status: "ACTIVE",
                 currentPeriodEnd: endDate,
+                dmResetDate: endDate,
                 cancelAtPeriodEnd: false,
                 maxAccounts: payment.plan?.maxAccounts || 1,
                 maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
+                currentDMCount: 0,
+                currentAICount: 0,
                 maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
                 hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
             },
@@ -509,6 +511,7 @@ export const xenditService = {
                 plan: payment.plan?.name as any,
                 status: "ACTIVE",
                 currentPeriodEnd: endDate,
+                dmResetDate: endDate,
                 maxAccounts: payment.plan?.maxAccounts || 1,
                 maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
                 maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
@@ -516,6 +519,7 @@ export const xenditService = {
             },
         });
 
+        // TODO : NOTIF send
         // Send notification
         await db.notification.create({
             data: {
@@ -539,6 +543,7 @@ export const xenditService = {
                 expiredAt: new Date(),
             },
         });
+        // TODO : NOTIF expired
     },
 
     /**

@@ -26,7 +26,6 @@ export const PlanComparisonTable: FC<PlanComparisonTableProps> = ({
 }) => {
     const comparison = comparePlans(plans);
 
-    console.log(comparison)
 
     // Group features by category
     const featureCategories = [

@@ -85,6 +85,11 @@ const admin_items = [
         url: "/admin/discounts",
         icon: Percent,
     },
+    {
+        title: "Payment Channels",
+        url: "/admin/payment-channels",
+        icon: CreditCard,
+    },
 ];
 
 

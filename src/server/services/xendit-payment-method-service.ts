@@ -127,6 +127,7 @@ class XenditPaymentMethodService {
      */
     async createPaymentMethod(params: PaymentMethodParams): Promise<PaymentMethodResponse> {
         try {
+            console.log("send create payment method")
             const response = await this.api.post('/v2/payment_methods', params);
             return response.data;
         } catch (error: any) {
@@ -487,7 +488,7 @@ class XenditPaymentMethodService {
         }
 
         if (paymentMethod.ewallet) {
-            return `${paymentMethod.ewallet.channel_code} - ${paymentMethod.ewallet.account.name}`;
+            return `${paymentMethod.ewallet.channel_code}${paymentMethod.ewallet.account?.name ? ` - ${paymentMethod.ewallet.account.name}` : ''}`;
         }
 
         if (paymentMethod.direct_debit) {

@@ -72,7 +72,7 @@ export const paymentMethodRouter = createTRPCRouter({
             // UPDATE: Use xenditChannelCode from database
             const xenditChannelCode = channelInfo?.xenditChannelCode || input.channelCode;
 
-            if (xenditChannelCode === 'ID_OVO' || xenditChannelCode === 'ID_LINKAJA') {
+            if (xenditChannelCode === 'OVO' || xenditChannelCode === 'LINKAJA') {
                 if (customer?.mobileNumber != input.phoneNumber) {
                     await xenditService.updateCustomer({
                         id: customer?.id!,

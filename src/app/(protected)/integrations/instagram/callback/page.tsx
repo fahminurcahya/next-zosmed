@@ -1,7 +1,8 @@
 'use client'
 import { api } from "@/trpc/react";
 import { Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from 'nextjs-toploader/app';
 import { useEffect } from "react";
 import { toast } from "sonner";
 

@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useRouter } from "next/navigation";
+import { useRouter } from 'nextjs-toploader/app';
 import confetti from 'canvas-confetti';
 
 
@@ -14,6 +14,8 @@ import confetti from 'canvas-confetti';
 const OnboardingSuccessStep = () => {
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
+
 
     // Get user's current setup status
     const { data: businessInfoData } = api.onboarding.getBusinessInfo.useQuery();
@@ -34,13 +36,16 @@ const OnboardingSuccessStep = () => {
 
     // Auto-complete onboarding when component mounts
     useEffect(() => {
+        if (!instagramData || isCompleted) return;
+
         const hasInstagramConnection = instagramData?.accounts && instagramData.accounts.length > 0;
 
         // Complete onboarding automatically
-        completeOnboardingMutation.mutate({
-            hasConnection: hasInstagramConnection || false
-        });
-    }, [instagramData]);
+        completeOnboardingMutation.mutate(
+            { hasConnection: hasInstagramConnection },
+            { onSuccess: () => setIsCompleted(true) }
+        );
+    }, [instagramData, isCompleted]);
 
     const handleGoToDashboard = () => {
         setIsRedirecting(true);

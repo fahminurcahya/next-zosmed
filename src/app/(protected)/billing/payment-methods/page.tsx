@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'nextjs-toploader/app';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,12 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+
 import {
     CreditCard,
     Wallet,
@@ -62,6 +57,8 @@ import { toast } from 'sonner';
 import { cn, formatDate } from '@/lib/utils';
 import { usePaymentChannels, usePaymentMethodActions, usePaymentMethodRequired, usePaymentMethods } from '@/hooks/payment-method-hook';
 import { useRecurringStatus } from '@/hooks/billing-hook';
+import NotFoundPage from '@/app/not-found';
+const isRecurring = process.env.CONFIG_RECURRING
 
 export default function PaymentMethodsPage() {
     const router = useRouter();
@@ -115,13 +112,9 @@ export default function PaymentMethodsPage() {
         // Fallback to existing logic
         const logoMap: Record<string, string> = {
             'OVO': '🟣',
-            'ID_OVO': '🟣',
             'DANA': '🔵',
-            'ID_DANA': '🔵',
             'SHOPEEPAY': '🟠',
-            'ID_SHOPEEPAY': '🟠',
             'LINKAJA': '🔴',
-            'ID_LINKAJA': '🔴',
             'BCA_ONEKLIK': '🏦',
             'BRI': '🏦',
             'MANDIRI': '🏦',
@@ -247,7 +240,7 @@ export default function PaymentMethodsPage() {
         }
     };
 
-
+    if (!isRecurring) return <NotFoundPage />
 
     // Loading state
     if (isLoading || channelsLoading) {

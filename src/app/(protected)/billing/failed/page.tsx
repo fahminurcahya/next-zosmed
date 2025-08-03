@@ -18,7 +18,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { NextPage } from 'next';
 import { api } from '@/trpc/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'nextjs-toploader/app';
 import { useSubscriptionActions } from '@/hooks/billing-hook';
 
 const BillingFailed: NextPage = () => {

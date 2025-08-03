@@ -307,7 +307,7 @@ export const paymentChannelRouter = createTRPCRouter({
         .input(z.object({
             planName: z.enum(["FREE", "STARTER", "PRO"]).optional(),
             isRecurring: z.boolean().default(false),
-            amount: z.number().positive().optional(),
+            amount: z.number().optional(),
         }))
         .query(async ({ ctx, input }) => {
             try {
@@ -321,6 +321,7 @@ export const paymentChannelRouter = createTRPCRouter({
                 } else {
                     where.isOneTimeEnabled = true;
                 }
+
 
                 // Filter by plan restrictions
                 if (input.planName) {
@@ -348,6 +349,9 @@ export const paymentChannelRouter = createTRPCRouter({
                     ];
                 }
 
+                console.log(where)
+
+
                 const channels = await ctx.db.paymentChannel.findMany({
                     where,
                     select: {
@@ -372,6 +376,9 @@ export const paymentChannelRouter = createTRPCRouter({
                         { channelName: 'asc' },
                     ],
                 });
+
+                console.log(channels)
+
 
                 return {
                     success: true,
@@ -400,8 +407,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 1,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: true,
+                        isRecurringEnabled: false,
                         xenditChannelCode: "BCA",
+                        processingFee: 4000,
+                        percentageFee: 0, // flat
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "BNI",
@@ -413,8 +424,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 2,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: true,
+                        isRecurringEnabled: false,
                         xenditChannelCode: "BNI",
+                        processingFee: 4000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "BRI",
@@ -426,8 +441,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 3,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: true,
+                        isRecurringEnabled: false,
                         xenditChannelCode: "BRI",
+                        processingFee: 4000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "MANDIRI",
@@ -439,8 +458,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 4,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: true,
+                        isRecurringEnabled: false,
                         xenditChannelCode: "MANDIRI",
+                        processingFee: 4000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "OVO",
@@ -452,8 +475,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 5,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: false,
-                        xenditChannelCode: "ID_OVO",
+                        isRecurringEnabled: true,
+                        xenditChannelCode: "OVO",
+                        processingFee: 5000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "DANA",
@@ -465,8 +492,12 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 6,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: false,
-                        xenditChannelCode: "ID_DANA",
+                        isRecurringEnabled: true,
+                        xenditChannelCode: "DANA",
+                        processingFee: 5000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
+
                     },
                     {
                         channelCode: "LINKAJA",
@@ -478,8 +509,11 @@ export const paymentChannelRouter = createTRPCRouter({
                         textColor: "#ffffff",
                         sortOrder: 7,
                         isOneTimeEnabled: true,
-                        isRecurringEnabled: false,
-                        xenditChannelCode: "ID_LINKAJA",
+                        isRecurringEnabled: true,
+                        xenditChannelCode: "LINKAJA",
+                        processingFee: 5000,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
                     },
                     {
                         channelCode: "QRIS",
@@ -492,23 +526,23 @@ export const paymentChannelRouter = createTRPCRouter({
                         sortOrder: 8,
                         isOneTimeEnabled: true,
                         isRecurringEnabled: false,
-                        xenditChannelCode: "ID_QRIS",
+                        xenditChannelCode: "QRIS",
+                        processingFee: 2500,
+                        percentageFee: 0,
+                        allowedForPlans: ["STARTER", "PRO"]
                     },
                 ];
+
 
                 const created = [];
                 for (const channelData of defaultChannels) {
                     try {
-                        const existing = await ctx.db.paymentChannel.findUnique({
+                        const channel = await ctx.db.paymentChannel.upsert({
                             where: { channelCode: channelData.channelCode },
+                            update: channelData,
+                            create: channelData,
                         });
-
-                        if (!existing) {
-                            const channel = await ctx.db.paymentChannel.create({
-                                data: channelData,
-                            });
-                            created.push(channel);
-                        }
+                        created.push(channel);
                     } catch (error) {
                         // Skip if already exists or other errors
                         console.error(`Failed to create channel ${channelData.channelCode}:`, error);

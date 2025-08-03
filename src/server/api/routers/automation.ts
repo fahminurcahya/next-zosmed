@@ -18,26 +18,7 @@ export const automationRouter = createTRPCRouter({
             return result;
 
         }),
-    getAutomationById: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
-        console.log(input.id)
-        return await ctx.db.automation.findUnique({
-            where: {
-                id: input.id,
-            },
-            include: {
-                keywords: true,
-                trigger: true,
-                posts: true,
-                listener: true,
-                // User: {
-                //     select: {
-                //         Subscription: true,
-                //         Integrations: true,
-                //     },
-                // },
-            },
-        });
-    }),
+
     addTriger: protectedProcedure
         .input(addTriggerSchema)
         .mutation(async ({ ctx, input }) => {

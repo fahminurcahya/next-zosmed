@@ -149,7 +149,7 @@ export default function SignUp() {
                             </div>
                             <ul className="text-xs text-green-700 space-y-1">
                                 <li>• 1 Instagram account</li>
-                                <li>• 100 DM per month</li>
+                                <li>• 100 DM</li>
                                 <li>• Basic automation features</li>
                                 <li>• No credit card required</li>
                             </ul>

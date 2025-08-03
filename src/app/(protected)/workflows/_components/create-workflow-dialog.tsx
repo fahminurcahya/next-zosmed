@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from 'nextjs-toploader/app';
 import { api } from "@/trpc/react";
 import {
     Dialog,

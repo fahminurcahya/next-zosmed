@@ -3,9 +3,11 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { xenditService } from "@/server/services/xendit-service";
 import { discountService } from "@/server/services/discount-service";
-import { FEE } from "@/constants/integration";
 import type { PaymentWithPlan } from "@/types/billing.type";
 import { xenditRecurringService } from "@/server/services/xendit-recurring-service";
+import { UserService } from "@/server/services/user-service";
+
+const userService = new UserService()
 
 export const billingRouter = createTRPCRouter({
     getCurrentSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -65,7 +67,8 @@ export const billingRouter = createTRPCRouter({
                 planId: z.string(),
                 discountCode: z.string().optional(),
                 enableRecurring: z.boolean().default(false),
-                isReplace: z.boolean().default(false)
+                isReplace: z.boolean().default(false),
+                paymentMethod: z.string().optional()
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -105,6 +108,11 @@ export const billingRouter = createTRPCRouter({
                         message: "You are already on this plan",
                     });
                 }
+            }
+
+            let FEE = 5000
+            if (plan.price > 500000) {
+                FEE = 10000
             }
 
             let finalAmount = plan.price + FEE;
@@ -156,20 +164,36 @@ export const billingRouter = createTRPCRouter({
 
             } else {
                 // Create invoice
+                const paymentMethods = [
+                    input.paymentMethod!
+                ]
                 const invoice = await xenditService.createInvoice({
                     userId: ctx.session.user.id,
                     planId: plan.id,
                     amount: finalAmount,
                     discountCode: input.discountCode,
                     discountAmount,
+                    paymentMethods: paymentMethods,
                     description: `Upgrade to ${plan.displayName} Plan`,
                 });
 
+                // TODO : NOTIF send invoice to take action to pay
                 return {
                     type: "invoice",
                     ...invoice,
                 };
             }
+        }),
+
+    upgradeWithSavedMethod: protectedProcedure
+        .input(z.object({
+            planId: z.string(),
+            discountCode: z.string().optional(),
+            paymentMethodId: z.string(),
+            enableRecurring: z.boolean().default(false),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            // Logic untuk upgrade menggunakan saved payment method
         }),
 
     getRecurringStatus: protectedProcedure
@@ -410,6 +434,29 @@ export const billingRouter = createTRPCRouter({
                 endDate: subscription.currentPeriodEnd,
             };
         }),
+
+    freeSubscribtion: protectedProcedure
+        .mutation(async ({ ctx, input }) => {
+            const subscription = await ctx.db.subscription.findUnique({
+                where: { userId: ctx.session.user.id },
+            });
+
+            if (!subscription) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "No active subscription found",
+                });
+            }
+
+            userService.changeToFreePlan(ctx.session.user.id);
+
+            return {
+                success: true,
+                message: "Success",
+                endDate: subscription.currentPeriodEnd,
+            };
+        }),
+
 
     // Resume cancelled subscription
     resumeSubscription: protectedProcedure.mutation(async ({ ctx }) => {

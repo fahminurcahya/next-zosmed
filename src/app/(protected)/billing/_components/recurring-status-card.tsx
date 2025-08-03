@@ -36,7 +36,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import EnableRecurringDialog from './enable-recurring-dialog';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'nextjs-toploader/app';
 
 interface RecurringStatusCardProps {
     onManageClick?: () => void;

@@ -15,7 +15,7 @@ export async function sendVerificationMail({ email, name, verificationUrl }: ver
     const result = await resend.emails.send({
         from: "Zosmed <noreply@zosmed.com>",
         to: email,
-        subject: "Welcome to Zosmed Waiting List! 🎉",
+        subject: "Verify Your Email to Activate Your Zosmed Account ✅",
         html: generateVerificationHTML({ name, verificationUrl }),
     });
 

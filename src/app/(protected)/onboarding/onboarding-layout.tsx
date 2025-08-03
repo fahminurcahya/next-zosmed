@@ -83,9 +83,6 @@ export default function OnboardingLayout({
                     <div className="flex flex-col md:flex-row items-center justify-between text-sm text-gray-600">
                         <div className="flex items-center space-x-4 mb-4 md:mb-0">
                             <span>Butuh bantuan?</span>
-                            <a href="/support/chat" className="text-blue-600 hover:text-blue-800 transition-colors">
-                                Live Chat
-                            </a>
                             <a href="/support/whatsapp" className="text-blue-600 hover:text-blue-800 transition-colors">
                                 WhatsApp
                             </a>

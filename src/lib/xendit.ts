@@ -132,7 +132,6 @@ export function getPaymentMethodInfo(method: XenditPaymentMethod) {
 
 // Group payment methods by type
 export function groupPaymentMethods(methods: XenditPaymentMethod[]) {
-    console.log(methods)
     const grouped: Record<string, XenditPaymentMethod[]> = {
         CARD: [],
         EWALLET: [],
@@ -175,52 +174,27 @@ export function getPaymentTypeDisplayName(type: string): string {
 
 // Calculate payment fees
 export function calculateXenditFees(amount: number, paymentMethod?: string): {
-    adminFee: number;
     paymentFee: number;
     totalFee: number;
     totalAmount: number;
 } {
-    const adminFee = 5000; // Fixed admin fee
-    let paymentFee = 0;
-
-    // Payment method specific fees (example rates)
-    if (paymentMethod) {
-        switch (paymentMethod) {
-            case "CREDIT_CARD":
-                paymentFee = amount * 0.029; // 2.9%
-                break;
-            case "OVO":
-            case "DANA":
-            case "LINKAJA":
-            case "SHOPEEPAY":
-                paymentFee = amount * 0.015; // 1.5%
-                break;
-            case "QRIS":
-                paymentFee = amount * 0.007; // 0.7%
-                break;
-            case "BCA":
-            case "BNI":
-            case "BRI":
-            case "MANDIRI":
-                paymentFee = 4000; // Fixed fee for VA
-                break;
-            case "ALFAMART":
-            case "INDOMARET":
-                paymentFee = 5000; // Fixed fee for retail
-                break;
-        }
+    let paymentFee = 5000; // Fixed payment fee
+    if (amount > 500000) {
+        paymentFee = 10000; // Fixed payment fee
     }
 
-    const totalFee = adminFee + Math.round(paymentFee);
+
+    const totalFee = paymentFee;
     const totalAmount = amount + totalFee;
 
     return {
-        adminFee,
         paymentFee: Math.round(paymentFee),
         totalFee,
         totalAmount,
     };
 }
+
+
 
 // Get payment status config
 export function getXenditPaymentStatusConfig(status: XenditPaymentStatus) {

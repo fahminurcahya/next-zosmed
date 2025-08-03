@@ -42,10 +42,10 @@ export const PaymentChannelForm: React.FC<PaymentChannelFormProps> = ({
         backgroundColor: channel?.backgroundColor || "",
         textColor: channel?.textColor || "",
         sortOrder: channel?.sortOrder || 0,
-        minAmount: channel?.minAmount || undefined,
-        maxAmount: channel?.maxAmount || undefined,
-        processingFee: channel?.processingFee || undefined,
-        percentageFee: channel?.percentageFee || undefined,
+        minAmount: channel?.minAmount || 0,
+        maxAmount: channel?.maxAmount || 99999999,
+        processingFee: channel?.processingFee || 0,
+        percentageFee: channel?.percentageFee || 0,
         allowedForPlans: channel?.allowedForPlans || [],
         description: channel?.description || "",
         customerMessage: channel?.customerMessage || "",
@@ -481,7 +481,7 @@ export const PaymentChannelForm: React.FC<PaymentChannelFormProps> = ({
                                 ...prev,
                                 xenditChannelCode: e.target.value
                             }))}
-                            placeholder="BCA, ID_OVO, ID_QRIS, etc."
+                            placeholder="BCA, OVO, QRIS, etc."
                             disabled={isLoading}
                         />
                     </motion.div>

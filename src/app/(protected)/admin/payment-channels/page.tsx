@@ -395,9 +395,8 @@ const PaymentChannelsAdminPage: React.FC = () => {
                           {(channel.processingFee || channel.percentageFee) && (
                             <div>
                               <span className="font-medium">Fees: </span>
-                              {channel.processingFee && formatCurrency(channel.processingFee)}
-                              {channel.processingFee && channel.percentageFee && " + "}
-                              {channel.percentageFee && `${channel.percentageFee}%`}
+                              {(channel.processingFee && channel.processingFee > 0) ? formatCurrency(channel.processingFee) : ''}
+                              {(channel.percentageFee && channel.percentageFee > 0) ? `${channel.percentageFee}%` : ''}
                             </div>
                           )}
                         </motion.div>

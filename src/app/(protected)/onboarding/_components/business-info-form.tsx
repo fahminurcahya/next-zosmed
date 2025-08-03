@@ -354,21 +354,6 @@ const BusinessInfoForm = ({
                     </CardContent>
                 </Card>
             </motion.div>
-
-            {/* Help Text */}
-            <motion.div
-                className="text-center mt-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-            >
-                <p className="text-sm text-gray-500">
-                    Butuh bantuan? Hubungi{' '}
-                    <a href="mailto:support@zosmed.com" className="text-blue-600 hover:underline">
-                        support@zosmed.com
-                    </a>
-                </p>
-            </motion.div>
         </div>
     )
 }

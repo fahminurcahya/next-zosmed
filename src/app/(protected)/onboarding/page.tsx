@@ -1,7 +1,8 @@
 'use client'
 import { api } from "@/trpc/react";
 import { Building2, CheckCircle, Crown, Instagram } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from 'nextjs-toploader/app';
 import { useEffect, useState } from "react";
 import BusinessInfoForm from "./_components/business-info-form";
 import { StepIndicator } from "./_components/step-indicator";

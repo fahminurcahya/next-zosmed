@@ -300,6 +300,21 @@ export function useSubscriptionActions() {
         },
     });
 
+    const createRenewalInvoice = api.billing.createRenewalInvoice.useMutation({
+        onSuccess: (data) => {
+            sessionStorage.setItem('xendit_invoice', JSON.stringify(data));
+            if ('invoiceUrl' in data && data.invoiceUrl) {
+                window.location.href = data.invoiceUrl;
+            } else {
+                toast.error("Failed to get payment URL");
+            }
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to create payment");
+            setIsEnablingRecurring(false);
+        },
+    });
+
     const upgradeWithSavedMethod = api.billing.upgradeWithSavedMethod.useMutation({
         onSuccess: (data) => {
             // if (data.activationUrl) {
@@ -384,12 +399,11 @@ export function useSubscriptionActions() {
     });
 
     const handleAction = useCallback(async (action: SubscriptionAction | RecurringAction) => {
+        const selectedPaymentMethod = sessionStorage.getItem('selectedPaymentMethod');
         switch (action.type) {
             case "UPGRADE":
                 const upgradeAction = action as SubscriptionAction & { type: "UPGRADE" };
                 const enableRecurring = localStorage.getItem('preferRecurring') === 'true';
-                const selectedPaymentMethod = sessionStorage.getItem('selectedPaymentMethod');
-
                 if (selectedPaymentMethod) {
                     const paymentMethod = JSON.parse(selectedPaymentMethod);
                     sessionStorage.removeItem('selectedPaymentMethod');
@@ -423,6 +437,20 @@ export function useSubscriptionActions() {
                 return cancel.mutateAsync({
                     reason: action.reason,
                     feedback: action.feedback,
+                });
+            case "RENEWAL":
+                const renewalAction = action as SubscriptionAction & { type: "RENEWAL" };
+                if (selectedPaymentMethod) {
+                    const paymentMethod = JSON.parse(selectedPaymentMethod);
+                    sessionStorage.removeItem('selectedPaymentMethod');
+
+                    return createRenewalInvoice.mutateAsync({
+                        planId: renewalAction.planId,
+                        paymentMethod: paymentMethod.channelCode,
+                    });
+                }
+                return createInvoice.mutateAsync({
+                    planId: renewalAction.planId,
                 });
             case "FREE":
                 return free.mutateAsync();

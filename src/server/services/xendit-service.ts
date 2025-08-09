@@ -37,6 +37,7 @@ export interface CreateInvoiceParams {
         email: string;
         mobileNumber?: string;
     };
+    isRenewal?: boolean;
 }
 
 export interface CreateRecurringParams {
@@ -96,8 +97,12 @@ export const xenditService = {
         });
 
         // Create invoice reference
-        const externalId = `INV-${Date.now()}-${user.id}`;
-
+        let externalId
+        if (params.isRenewal) {
+            externalId = `REN-${Date.now()}-${user.id}`;
+        } else {
+            externalId = `INV-${Date.now()}-${user.id}`;
+        }
         try {
             const invoiceRequest: CreateInvoiceRequest = {
                 externalId,
@@ -481,54 +486,113 @@ export const xenditService = {
             },
         });
 
-        // Update user subscription
-        const currentDate = new Date();
-        const endDate = payment.plan?.period === "YEARLY"
-            ? addMonths(currentDate, 12)
-            : payment.plan?.period === "QUARTERLY"
-                ? addMonths(currentDate, 3)
-                : addMonths(currentDate, 1);
+        // Cek apakah invoice.external_id diawali dengan "REN"
+        if (invoice.external_id && invoice.external_id.startsWith("REN")) {
+            // Ini adalah pembayaran renewal, bisa tambahkan logika khusus jika diperlukan
+            const subscription = await db.subscription.findFirst({
+                where: {
+                    userId: payment.userId,
+                },
+            });
+            if (!subscription) {
+                console.error("Subscription not found for user:", payment.userId);
+                return;
+            }
 
-        await db.subscription.upsert({
-            where: { userId: payment.userId },
-            update: {
-                pricingPlanId: payment.planId,
-                plan: payment.plan?.name as any,
-                status: "ACTIVE",
-                currentPeriodEnd: endDate,
-                dmResetDate: endDate,
-                cancelAtPeriodEnd: false,
-                maxAccounts: payment.plan?.maxAccounts || 1,
-                maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
-                currentDMCount: 0,
-                currentAICount: 0,
-                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
-                hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
-            },
-            create: {
-                userId: payment.userId,
-                pricingPlanId: payment.planId,
-                plan: payment.plan?.name as any,
-                status: "ACTIVE",
-                currentPeriodEnd: endDate,
-                dmResetDate: endDate,
-                maxAccounts: payment.plan?.maxAccounts || 1,
-                maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
-                maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
-                hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
-            },
-        });
+            const currentPeriodEnd = subscription!.currentPeriodEnd!
+            const endDate = payment.plan?.period === "YEARLY"
+                ? addMonths(currentPeriodEnd, 12)
+                : payment.plan?.period === "QUARTERLY"
+                    ? addMonths(currentPeriodEnd, 3)
+                    : addMonths(currentPeriodEnd, 1);
 
-        // TODO : NOTIF send
-        // Send notification
-        await db.notification.create({
-            data: {
-                userId: payment.userId,
-                content: `Payment successful! Your ${payment.plan?.displayName} plan is now active.`,
-                channel: 'email'
-            },
-        });
 
+            // Cek apakah currentPeriodEnd lebih besar dari sekarang
+            const now = new Date();
+            const dmResetDate = currentPeriodEnd > now ? subscription.dmResetDate : endDate;
+
+            let currentDMCount, currentAICount
+            if (currentPeriodEnd > now) {
+                currentDMCount = subscription.currentDMCount
+                currentAICount = subscription.currentAICount
+            } else {
+                currentDMCount = 0
+                currentAICount = 0
+            }
+
+            await db.subscription.update({
+                where: { userId: payment.userId },
+                data: {
+                    pricingPlanId: payment.planId,
+                    plan: payment.plan?.name as any,
+                    status: "ACTIVE",
+                    currentPeriodEnd: endDate,
+                    dmResetDate: dmResetDate,
+                    currentDMCount: currentDMCount,
+                    currentAICount: currentAICount,
+
+                },
+            });
+
+            // TODO : NOTIF send
+            // Send notification
+            await db.notification.create({
+                data: {
+                    userId: payment.userId,
+                    content: `Renewal payment successful! Your ${payment.plan?.displayName} plan has been extended.`,
+                    channel: 'email'
+                },
+            });
+
+        } else {
+            // Update user subscription
+            const currentDate = new Date();
+            const endDate = payment.plan?.period === "YEARLY"
+                ? addMonths(currentDate, 12)
+                : payment.plan?.period === "QUARTERLY"
+                    ? addMonths(currentDate, 3)
+                    : addMonths(currentDate, 1);
+
+            await db.subscription.upsert({
+                where: { userId: payment.userId },
+                update: {
+                    pricingPlanId: payment.planId,
+                    plan: payment.plan?.name as any,
+                    status: "ACTIVE",
+                    currentPeriodEnd: endDate,
+                    dmResetDate: endDate,
+                    cancelAtPeriodEnd: false,
+                    maxAccounts: payment.plan?.maxAccounts || 1,
+                    maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
+                    currentDMCount: 0,
+                    currentAICount: 0,
+                    maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
+                    hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
+                },
+                create: {
+                    userId: payment.userId,
+                    pricingPlanId: payment.planId,
+                    plan: payment.plan?.name as any,
+                    status: "ACTIVE",
+                    currentPeriodEnd: endDate,
+                    dmResetDate: endDate,
+                    maxAccounts: payment.plan?.maxAccounts || 1,
+                    maxDMPerMonth: payment.plan?.maxDMPerMonth || 50,
+                    maxAIReplyPerMonth: payment.plan?.maxAIReplyPerMonth || 20,
+                    hasAIReply: (payment.plan?.maxAIReplyPerMonth || 0) > 0,
+                },
+            });
+
+            // TODO : NOTIF send
+            // Send notification
+            await db.notification.create({
+                data: {
+                    userId: payment.userId,
+                    content: `Payment successful! Your ${payment.plan?.displayName} plan is now active.`,
+                    channel: 'email'
+                },
+            });
+        }
         console.log(`Payment processed for user ${payment.userId}, plan ${payment.planId}`);
     },
 

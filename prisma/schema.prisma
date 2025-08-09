@@ -163,7 +163,7 @@ model Subscription {
   maxAccounts    Int               @default(1) @map("max_accounts")
   maxDMPerMonth  Int               @default(100) @map("max_dm_per_month")
   currentDMCount Int               @default(0) @map("current_dm_count")
-  dmResetDate    DateTime          @default(now()) @map("dm_reset_date")
+  dmResetDate    DateTime? @map("dm_reset_date")
 
   // AI Features
   hasAIReply          Boolean @default(false) @map("has_ai_reply")

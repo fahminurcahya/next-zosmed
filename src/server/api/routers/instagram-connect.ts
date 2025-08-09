@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { InstagramAuthService } from "@/server/services/instagram-auth";
 import { TRPCError } from "@trpc/server";
 import { INTEGRATION_TYPE, SUBSCRIPTION_PLAN } from "@prisma/client";
+import { getLast30Days } from "@/server/helper/common";
 
 export const instagramConnectRouter = createTRPCRouter({
     // Get OAuth URL
@@ -54,7 +55,6 @@ export const instagramConnectRouter = createTRPCRouter({
                     data: {
                         userId,
                         plan: SUBSCRIPTION_PLAN.FREE,
-                        dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
                     },
                 });
             }
@@ -167,14 +167,14 @@ export const instagramConnectRouter = createTRPCRouter({
                             comments: {
                                 where: {
                                     createdAt: {
-                                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+                                        gte: getLast30Days(), // Last 30 days
                                     },
                                 },
                             },
                             messages: {
                                 where: {
                                     createdAt: {
-                                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+                                        gte: getLast30Days(), // Last 30 days
                                     },
                                 },
                             },

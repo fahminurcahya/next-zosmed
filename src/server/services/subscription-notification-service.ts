@@ -1,6 +1,7 @@
 // server/api/services/subscription-notification.service.ts
 import { db } from "@/server/db";
 import { SubscriptionStatus } from "@prisma/client";
+import { addDays, subDays } from "date-fns";
 
 // Types for notification data
 export interface NotificationData {
@@ -30,8 +31,8 @@ export class SubscriptionNotificationService {
     static async processMorningNotifications(): Promise<ProcessSubscriptionResult> {
         try {
             const today = new Date();
-            const threeDaysFromNow = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
-            const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000));
+            const threeDaysFromNow = addDays(today, 3);
+            const threeDaysAgo = subDays(today, 3);
 
             const notifications: NotificationData[] = [];
 

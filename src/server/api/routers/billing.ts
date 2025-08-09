@@ -185,6 +185,82 @@ export const billingRouter = createTRPCRouter({
             }
         }),
 
+    // Create payment invoice
+    createRenewalInvoice: protectedProcedure
+        .input(
+            z.object({
+                planId: z.string(),
+                paymentMethod: z.string().optional()
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+
+            const user = await ctx.db.user.findUnique({
+                where: { id: ctx.session.user.id },
+                select: { id: true, email: true, name: true },
+            });
+
+            if (!user || !user.email) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "User email is required",
+                });
+            }
+
+            const plan = await ctx.db.pricingPlan.findUnique({
+                where: { id: input.planId },
+            });
+
+            if (!plan) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Plan not found",
+                });
+            }
+
+            // Check if already on this plan
+            const currentSub = await ctx.db.subscription.findUnique({
+                where: { userId: ctx.session.user.id },
+            });
+
+            if (currentSub?.pricingPlanId !== input.planId) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Plan is not same",
+                });
+            }
+
+            let FEE = 5000
+            if (plan.price > 500000) {
+                FEE = 10000
+            }
+
+            let finalAmount = plan.price + FEE;
+            let discountAmount = 0;
+
+
+            // Create invoice
+            const paymentMethods = [
+                input.paymentMethod!
+            ]
+            const invoice = await xenditService.createInvoice({
+                userId: ctx.session.user.id,
+                planId: plan.id,
+                amount: finalAmount,
+                discountAmount,
+                paymentMethods: paymentMethods,
+                description: `Renewal ${plan.displayName} Plan`,
+                isRenewal: true,
+            });
+
+            // TODO : NOTIF send invoice to take action to pay
+            return {
+                type: "invoice",
+                ...invoice,
+            };
+        }
+        ),
+
     upgradeWithSavedMethod: protectedProcedure
         .input(z.object({
             planId: z.string(),

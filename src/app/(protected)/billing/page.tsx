@@ -42,6 +42,7 @@ import {
     Loader2,
     FileText,
     Info,
+    Repeat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -55,6 +56,7 @@ import { usePaymentMethods } from "@/hooks/payment-method-hook";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from 'nextjs-toploader/app';
+import PaymentMethodSelection, { type PaymentMethodSelectionResult } from "./_components/payment-method-selection";
 
 
 
@@ -143,7 +145,7 @@ const containerVariants = {
 
 export default function BillingDashboardPage() {
     const isDevelopmentmode = process.env.NODE_ENV === 'development'
-    const isRecuring = process.env.CONFIG_RECURRING || false
+    const isRecurring = process.env.CONFIG_RECURRING || false
     const router = useRouter();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [cancelReason, setCancelReason] = useState("");
@@ -154,6 +156,8 @@ export default function BillingDashboardPage() {
     const { handleAction, isProcessing } = useSubscriptionActions();
     const { paymentMethods, hasActiveMethod, defaultMethod, isLoading: paymentMethodsLoading } = usePaymentMethods();
     const [showEnableDialog, setShowEnableDialog] = useState(false);
+    const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false);
+
 
     const {
         payments,
@@ -196,6 +200,24 @@ export default function BillingDashboardPage() {
             // Error is already handled by the hook
         }
     };
+
+
+    const handlePaymentMethodSelect = async (selection: PaymentMethodSelectionResult) => {
+        try {
+            // Store payment method selection in sessionStorage for the billing hook to use
+            sessionStorage.setItem('selectedPaymentMethod', JSON.stringify(selection));
+            // Use existing billing flow
+            await handleAction({
+                type: "RENEWAL",
+                planId: subscription!.planId!,
+            });
+        } catch (error) {
+            console.error("Renewal failed:", error);
+        } finally {
+            setShowPaymentMethodDialog(false);
+        }
+    };
+
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, any> = {
@@ -275,7 +297,7 @@ export default function BillingDashboardPage() {
                         Manage your subscription and view payment history
                     </p>
                 </div>
-                {isRecuring && (
+                {isRecurring && (
                     <motion.div
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -304,7 +326,7 @@ export default function BillingDashboardPage() {
                                 Current Plan
                                 <div className="flex items-center gap-2">
                                     <AnimatePresence>
-                                        {subscription?.isActive && (
+                                        {subscription?.isActive ? (
                                             <motion.div
                                                 initial={{ scale: 0, opacity: 0 }}
                                                 animate={{ scale: 1, opacity: 1 }}
@@ -312,8 +334,14 @@ export default function BillingDashboardPage() {
                                             >
                                                 <Badge variant="success">Active</Badge>
                                             </motion.div>
-                                        )}
-                                        {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && isRecuring && (
+                                        ) : <motion.div
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            exit={{ scale: 0, opacity: 0 }}
+                                        >
+                                            <Badge variant="destructive">Inactive</Badge>
+                                        </motion.div>}
+                                        {subscription && subscription.planDisplayName.toLowerCase() !== "free" && !hasActiveMethod && isRecurring && (
                                             <motion.div
                                                 initial={{ scale: 0, opacity: 0 }}
                                                 animate={{ scale: 1, opacity: 1 }}
@@ -405,98 +433,122 @@ export default function BillingDashboardPage() {
                             )}
                         </CardContent>
                         {subscription && (
-                            <CardFooter className="flex gap-2">
-                                <AnimatePresence mode="wait">
-                                    {subscription.cancelAtPeriodEnd ? (
-                                        <motion.div
-                                            key="resume"
-                                            initial="enter"
-                                            animate="center"
-                                            exit="exit"
-                                            className="flex-1"
-                                        >
-                                            <Button
-                                                variant="outline"
-                                                onClick={handleResumeSubscription}
-                                                disabled={isProcessing}
-                                                className="w-full"
-                                            >
-                                                {isProcessing ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                                )}
-                                                Resume Subscription
-                                            </Button>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="actions"
-                                            initial="enter"
-                                            animate="center"
-                                            exit="exit"
-                                            className="flex gap-2 flex-1"
-                                        >
+                            <>
+                                <CardFooter className="flex gap-2">
+                                    <AnimatePresence mode="wait">
+                                        {subscription.cancelAtPeriodEnd ? (
                                             <motion.div
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
+                                                key="resume"
+                                                initial="enter"
+                                                animate="center"
+                                                exit="exit"
                                                 className="flex-1"
                                             >
                                                 <Button
-                                                    onClick={() => router.push("/billing/upgrade")}
+                                                    variant="outline"
+                                                    onClick={handleResumeSubscription}
+                                                    disabled={isProcessing}
                                                     className="w-full"
                                                 >
-                                                    <Zap className="mr-2 h-4 w-4" />
-                                                    Upgrade Plan
-
+                                                    {isProcessing ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    Resume Subscription
                                                 </Button>
                                             </motion.div>
-                                            {subscription.planDisplayName.toLowerCase() !== "free".toLowerCase() && (
+                                        ) : (
+                                            <motion.div
+                                                key="actions"
+                                                initial="enter"
+                                                animate="center"
+                                                exit="exit"
+                                                className="flex gap-2 flex-1"
+                                            >
                                                 <motion.div
                                                     whileHover={{ scale: 1.02 }}
                                                     whileTap={{ scale: 0.98 }}
+                                                    className="flex-1"
                                                 >
                                                     <Button
-                                                        variant="outline"
-                                                        onClick={() => setShowCancelDialog(true)}
+                                                        onClick={() => router.push("/billing/upgrade")}
+                                                        className="w-full"
                                                     >
-                                                        Cancel
+                                                        <Zap className="mr-2 h-4 w-4" />
+                                                        Upgrade Plan
+
                                                     </Button>
                                                 </motion.div>
-                                            )}
+                                                {subscription.planDisplayName.toLowerCase() !== "free".toLowerCase() && isRecurring && (
+                                                    <motion.div
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                    >
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() => setShowCancelDialog(true)}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </motion.div>
+                                                )}
+                                                {subscription.isShowRenewal && <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                    className="flex-1"
+                                                >
+                                                    <Button
+                                                        onClick={() => setShowPaymentMethodDialog(true)}
+                                                        className="w-full"
+                                                    >
+                                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                                        Renewal Plan
+                                                    </Button>
+                                                </motion.div>}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {isDevelopmentmode && (
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <Button
+                                                variant="secondary"
+                                                onClick={async () => {
+                                                    try {
+                                                        await handleAction({
+                                                            type: "FREE",
+                                                        });
+                                                        toast.success("Successfully changed to Free plan");
+                                                    } catch (error) {
+                                                        toast.error("Failed to change to Free plan");
+                                                    }
+                                                }}
+                                                disabled={isProcessing}
+                                                className="text-xs px-2"
+                                            >
+                                                {isProcessing ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    "→ Free"
+                                                )}
+                                            </Button>
                                         </motion.div>
                                     )}
-                                </AnimatePresence>
+                                </CardFooter>
+                                <PaymentMethodSelection
+                                    isOpen={showPaymentMethodDialog}
+                                    onClose={() => setShowPaymentMethodDialog(false)}
+                                    onSelect={handlePaymentMethodSelect}
+                                    isRecurring={false}
+                                    amount={subscription.price}
+                                    planName={subscription.plan as any}
+                                />
+                            </>
 
-                                {isDevelopmentmode && (
-                                    <motion.div
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        <Button
-                                            variant="secondary"
-                                            onClick={async () => {
-                                                try {
-                                                    await handleAction({
-                                                        type: "FREE",
-                                                    });
-                                                    toast.success("Successfully changed to Free plan");
-                                                } catch (error) {
-                                                    toast.error("Failed to change to Free plan");
-                                                }
-                                            }}
-                                            disabled={isProcessing}
-                                            className="text-xs px-2"
-                                        >
-                                            {isProcessing ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                            ) : (
-                                                "→ Free"
-                                            )}
-                                        </Button>
-                                    </motion.div>
-                                )}
-                            </CardFooter>
                         )}
                     </Card>
                 </motion.div>
@@ -516,33 +568,35 @@ export default function BillingDashboardPage() {
             </motion.div>
 
             {/* Recurring Status Card - Only show for non-free plans */}
-            {subscription?.planDisplayName.toLowerCase() !== "free".toLowerCase() && isRecuring && (
-                <motion.div>
-                    <AnimatePresence>
-                        {!hasActiveMethod && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                            >
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertDescription>
-                                        <strong>About Recurring Payments:</strong> To enable automatic recurring payments, you need to add a payment method first.
-                                        This ensures your subscription continues uninterrupted without manual payments each month.
-                                    </AlertDescription>
-                                </Alert>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                    <motion.div
-                        whileHover={{ y: -2 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    >
-                        <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+            {
+                subscription?.planDisplayName.toLowerCase() !== "free".toLowerCase() && isRecurring && (
+                    <motion.div>
+                        <AnimatePresence>
+                            {!hasActiveMethod && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                >
+                                    <Alert>
+                                        <Info className="h-4 w-4" />
+                                        <AlertDescription>
+                                            <strong>About Recurring Payments:</strong> To enable automatic recurring payments, you need to add a payment method first.
+                                            This ensures your subscription continues uninterrupted without manual payments each month.
+                                        </AlertDescription>
+                                    </Alert>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        <motion.div
+                            whileHover={{ y: -2 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        >
+                            <RecurringStatusCard onOpenChange={setShowEnableDialog} />
+                        </motion.div>
                     </motion.div>
-                </motion.div>
-            )}
+                )
+            }
 
             {/* Payment History with Tabs */}
             <motion.div>
@@ -567,7 +621,7 @@ export default function BillingDashboardPage() {
                                             One-time Payments
                                         </Button>
                                     </motion.div>
-                                    {isRecuring && (
+                                    {isRecurring && (
                                         <motion.div
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.98 }}
@@ -923,6 +977,8 @@ export default function BillingDashboardPage() {
                 open={showEnableDialog}
                 onOpenChange={setShowEnableDialog}
             />
-        </motion.div>
+
+
+        </motion.div >
     );
 }

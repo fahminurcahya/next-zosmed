@@ -32,7 +32,6 @@ export class UserService {
                     hasAIReply: freePlan.maxAIReplyPerMonth > 0,
                     currentPeriodStart: new Date(),
                     currentPeriodEnd: null,
-                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 },
                 include: { pricingPlan: true }
             });
@@ -78,7 +77,6 @@ export class UserService {
                     hasAIReply: freePlan.maxAIReplyPerMonth > 0,
                     currentPeriodStart: new Date(),
                     currentPeriodEnd: null,
-                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 },
                 update: {
                     userId,
@@ -93,7 +91,6 @@ export class UserService {
                     hasAIReply: freePlan.maxAIReplyPerMonth > 0,
                     currentPeriodStart: new Date(),
                     currentPeriodEnd: null,
-                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 },
                 include: { pricingPlan: true }
             });

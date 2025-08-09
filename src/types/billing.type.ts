@@ -86,6 +86,7 @@ export interface FormattedSubscription {
     cancelAtPeriodEnd: boolean;
     hasAIReply: boolean;
     dmResetDate: Date;
+    isShowRenewal: boolean;
 }
 
 // Payment Types
@@ -275,4 +276,5 @@ export type SubscriptionAction =
     | { type: "UPGRADE"; planId: string; discountCode?: string }
     | { type: "CANCEL"; reason?: string; feedback?: string }
     | { type: "RESUME" }
+    | { type: "RENEWAL"; planId: string }
     | { type: "CHANGE_PAYMENT_METHOD"; methodId: string };

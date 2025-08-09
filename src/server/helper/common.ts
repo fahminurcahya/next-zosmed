@@ -15,3 +15,10 @@ export function replaceCallbackURL(originalUrl: string, newCallbackURL: string) 
         return originalUrl; // Return original URL if parsing fails
     }
 }
+
+export function getLast30Days() {
+    const now = new Date();
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return last30Days;
+}
+

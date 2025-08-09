@@ -113,6 +113,21 @@ export function formatSubscription(
     subscription: SubscriptionWithPlan
 ): FormattedSubscription {
 
+    // Hitung apakah hari ini dalam rentang 3 hari sebelum dan 3 hari setelah currentPeriodEnd
+    let isShowRenewal = false;
+    if (subscription.currentPeriodEnd) {
+        const now = new Date();
+        const periodEnd = new Date(subscription.currentPeriodEnd);
+        const threeDaysBefore = new Date(periodEnd);
+        threeDaysBefore.setDate(periodEnd.getDate() - 3);
+        const threeDaysAfter = new Date(periodEnd);
+        threeDaysAfter.setDate(periodEnd.getDate() + 3);
+
+        if (now >= threeDaysBefore && now <= threeDaysAfter) {
+            isShowRenewal = true;
+        }
+    }
+
     return {
         id: subscription.id,
         userId: subscription.userId || "",
@@ -132,6 +147,7 @@ export function formatSubscription(
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
         hasAIReply: subscription.hasAIReply,
         dmResetDate: subscription.dmResetDate,
+        isShowRenewal,
     };
 }
 

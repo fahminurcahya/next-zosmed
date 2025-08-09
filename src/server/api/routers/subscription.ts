@@ -17,22 +17,9 @@ export const subscriptionRouter = createTRPCRouter({
                 data: {
                     userId: ctx.session.user.id,
                     plan: 'FREE',
-                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 },
             });
             return newSubscription;
-        }
-
-        // Check if DM reset is needed
-        if (new Date() >= subscription.dmResetDate) {
-            const updatedSubscription = await ctx.db.subscription.update({
-                where: { id: subscription.id },
-                data: {
-                    currentDMCount: 0,
-                    dmResetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                },
-            });
-            return updatedSubscription;
         }
 
         return subscription;
@@ -53,9 +40,10 @@ export const subscriptionRouter = createTRPCRouter({
             };
         }
 
-        const daysUntilReset = Math.ceil(
-            (subscription.dmResetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-        );
+        const daysUntilReset = subscription.dmResetDate ?
+            Math.ceil(
+                (subscription.dmResetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            ) : null;
 
         return {
             dmUsed: subscription.currentDMCount,

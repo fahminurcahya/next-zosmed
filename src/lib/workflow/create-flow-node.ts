@@ -4,15 +4,19 @@ import { TaskType } from "@/types/task.type";
 
 const defaultSafetyConfig = {
     enabled: true,
-    mode: 'safe' as const,
-    customLimits: {
-        maxRepliesPerHour: 15,
-        maxRepliesPerDay: 100,
-        delayBetweenReplies: [8, 20] as [number, number]
+    mode: 'balanced' as const,
+    combinedLimits: {
+        maxActionsPerHour: 25,
+        maxActionsPerDay: 200,
+        delayBetweenActions: [5, 15] as [number, number],
+        commentToDmDelay: [8, 15] as [number, number]
+
     },
-    contentRules: {
+    actionTypes: {
         enableCommentReply: true,
         enableDMReply: true,
+    },
+    contentRules: {
         maxMentions: 1,
         maxHashtags: 2
     }
@@ -29,8 +33,8 @@ export function CreateFlowNode(
         inputs: {},
     };
 
-    // Initialize specific data for IG_USER_COMMENT nodes
-    if (nodeType === TaskType.IG_USER_COMMENT) {
+    // Initialize specific data for IG_COMMENT_RECEIVED nodes
+    if (nodeType === TaskType.IG_COMMENT_RECEIVED) {
         nodeData.igUserCommentData = {
             selectedPostId: "",
             includeKeywords: [],
@@ -47,7 +51,7 @@ export function CreateFlowNode(
         };
     }
 
-    // Initialize specific data for IG_USER_COMMENT nodes
+    // Initialize specific data for IG_COMMENT_RECEIVED nodes
     if (nodeType === TaskType.IG_USER_DM) {
         nodeData.igUserDMData = {
             includeKeywords: [],

@@ -8,8 +8,7 @@ import { CoinsIcon } from "lucide-react";
 interface Props {
     taskType: TaskType;
     sourceNodeId?: string;
-    sourceHandle?: string;
-    onCreateAndConnect?: (sourceNodeId: string, sourceHandle: string, taskType: TaskType) => void;
+    onCreateAndConnect?: (sourceNodeId: string, taskType: TaskType) => void;
     isDisable?: boolean
 
 }
@@ -17,7 +16,6 @@ interface Props {
 export function TaskMenuBtn({
     taskType,
     sourceNodeId,
-    sourceHandle,
     onCreateAndConnect,
     isDisable = false
 }: Props) {
@@ -29,8 +27,8 @@ export function TaskMenuBtn({
     };
 
     const handleClick = () => {
-        if (sourceNodeId && sourceHandle && onCreateAndConnect) {
-            onCreateAndConnect(sourceNodeId, sourceHandle, taskType);
+        if (sourceNodeId && onCreateAndConnect) {
+            onCreateAndConnect(sourceNodeId, taskType);
         }
     };
 

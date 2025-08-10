@@ -15,7 +15,7 @@ export const IGUserDM = {
     inputs: [],
     outputs: [
         {
-            name: "Action",
+            name: "TRIGGER",
             type: TaskParamType.TRIGGER,
             required: true,
         }
@@ -25,13 +25,11 @@ export const IGUserDM = {
             <TaskMenuBtn
                 taskType={TaskType.IG_SEND_MSG_FROM_DM}
                 sourceNodeId={sourceNodeId}
-                sourceHandle="Action"
                 onCreateAndConnect={onCreateAndConnect}
             />
             <TaskMenuBtn
                 taskType={TaskType.IG_SEND_WITH_AI}
                 sourceNodeId={sourceNodeId}
-                sourceHandle="Action"
                 onCreateAndConnect={onCreateAndConnect}
                 isDisable
             />

@@ -1,19 +1,14 @@
 'use client'
 import React from 'react'
 import { Separator } from '@/components/ui/separator'
-import type { EditorNodeType } from '@/types/app-node.type'
 import { TaskType } from '@/types/task.type'
 import { TaskRegistry } from '@/lib/workflow/task/registry'
 import { useReactFlow, type Node } from '@xyflow/react'
 import EntrypointMenu from './entrypoint-menu'
 import type { WorkflowTask } from '@/types/workflow.type'
 
-type Props = {
-    nodes: EditorNodeType[]
-}
 
 const EditorCanvasSidebar = ({ selectedNode }: { selectedNode: Node<Record<string, unknown>, string | undefined> | null }) => {
-
 
     if (!selectedNode) {
         return <div className="p-4">
@@ -35,7 +30,7 @@ const EditorCanvasSidebar = ({ selectedNode }: { selectedNode: Node<Record<strin
     // Get initial data based on task type
     let initialData;
     switch (taskType) {
-        case TaskType.IG_USER_COMMENT:
+        case TaskType.IG_COMMENT_RECEIVED:
             initialData = selectedNode.data?.igUserCommentData;
             break;
         case TaskType.IG_SEND_MSG:

@@ -29,7 +29,7 @@ export default function EntrypointMenu() {
                     Intagram
                 </AccordionTrigger>
                 <AccordionContent className="flex flex-col gap-1">
-                    <TaskMenuBtn taskType={TaskType.IG_USER_COMMENT} />
+                    <TaskMenuBtn taskType={TaskType.IG_COMMENT_RECEIVED} />
                     <TaskMenuBtn taskType={TaskType.IG_USER_DM} />
                 </AccordionContent>
             </AccordionItem>

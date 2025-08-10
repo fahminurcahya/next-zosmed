@@ -18,6 +18,15 @@ const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const NodeComponent = memo((props: NodeProps) => {
     const nodeData = props.data as AppNodeData & { onCreateAndConnect?: (sourceNodeId: string, sourceHandle: string, taskType: TaskType) => void };
     const task = TaskRegistry[nodeData.type];
+    if (!task) {
+        return (
+            <NodeInputs>
+                <NodeCard nodeId={props.id} isSelected={!!props.selected}>
+                    <div className="text-xs text-red-500">Unknown task type: {String(nodeData.type)}</div>
+                </NodeCard>
+            </NodeInputs>
+        );
+    }
     const DropdownComponent = task.dropdownComponent;
 
     // Get form data to display in node

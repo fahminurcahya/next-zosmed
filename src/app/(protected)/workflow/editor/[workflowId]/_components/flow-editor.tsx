@@ -49,29 +49,36 @@ function FlowEditor({ workflow, onSelectNode }:
         try {
             const flow = JSON.parse(workflow.definition);
             if (!flow) return;
-            setNodes(flow.nodes || []);
-            setEdges(flow.edges || []);
-            if (!flow.viewport) return;
-            const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-            setViewport({ x, y, zoom });
 
-            if (flow.nodes?.length > 0) {
-                function getLastNode(nodes: Node[], edges: Edge[]): Node | undefined {
-                    const nodeIdsWithOutgoingEdges = edges.map((edge) => edge.source);
-                    return nodes.find((node) => !nodeIdsWithOutgoingEdges.includes(node.id));
+            const safeNodes = (flow.nodes ?? []).map((n: Node) => ({ ...n, id: String(n.id) }));
+
+            const seen = new Set<string>();
+            const safeEdges = (flow.edges ?? []).map((e: Edge, idx: number) => {
+                let id = String(e.id ?? '');
+                if (!id || seen.has(id)) {
+                    id = `e-${e.source}-${e.target}-${idx}-${Date.now()}`;
                 }
+                seen.add(id);
+                return { ...e, id };
+            });
 
-                const lastNode = getLastNode(flow.nodes, flow.edges);
-                if (lastNode) onSelectNode(lastNode);
-                setNodes((nds) =>
-                    nds.map((node) => ({
-                        ...node,
-                        selected: node.id === lastNode?.id,
-                    }))
+            setNodes(safeNodes);
+            setEdges(safeEdges);
+
+            if (safeNodes.length > 0) {
+                onSelectNode(safeNodes[0]);
+                setNodes(prev =>
+                    prev.map((n, i) => ({ ...n, selected: i === 0 })) // tandai node pertama sebagai selected
                 );
             }
         } catch (error) { }
     }, [workflow.definition, setEdges, setNodes, setViewport]);
+
+    useEffect(() => {
+        const dup = (arr: string[]) => arr.filter((id, i) => arr.indexOf(id) !== i);
+        const edgeDup = dup(edges.map(e => e.id));
+        if (edgeDup.length) console.warn('Duplicate edge IDs:', edgeDup);
+    }, [edges]);
 
     const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault();
@@ -115,13 +122,19 @@ function FlowEditor({ workflow, onSelectNode }:
     );
 
     const createAndConnectNode = useCallback(
-        (sourceNodeId: string, taskType: TaskType, position?: { x: number; y: number }) => {
+        (
+            sourceNodeId: string,
+            taskType: TaskType,
+            position?: { x: number; y: number }
+        ) => {
+
             // Create position near the source node if not provided
             const sourceNode = nodes.find(n => n.id === sourceNodeId);
             const nodePosition = position || {
                 x: (sourceNode?.position.x || 0) + 100,
                 y: (sourceNode?.position.y || 0) + 250
             };
+
 
             const newNode = CreateFlowNode(taskType, nodePosition);
 
@@ -131,7 +144,7 @@ function FlowEditor({ workflow, onSelectNode }:
 
                 const connection: Connection = {
                     source: sourceNodeId,
-                    sourceHandle: null,  // Required by Connection type
+                    sourceHandle: null, // 
                     target: newNode.id,
                     targetHandle: null,  // Required by Connection type
                 };
@@ -171,6 +184,8 @@ function FlowEditor({ workflow, onSelectNode }:
             }
         }));
     }, [nodes]);
+
+
 
 
     return (

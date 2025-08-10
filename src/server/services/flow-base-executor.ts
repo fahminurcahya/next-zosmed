@@ -62,7 +62,7 @@ export class FlowBasedWorkflowExecutor {
                     workflowId: workflow.id,
                     userId: workflow.userId,
                     trigger: JSON.stringify({
-                        type: context.comment ? 'IG_USER_COMMENT' : 'IG_DM_RECEIVED',
+                        type: context.comment ? 'IG_COMMENT_RECEIVED' : 'IG_DM_RECEIVED',
                         data: context.comment || context.message
                     }),
                     status: 'RUNNING',
@@ -162,7 +162,7 @@ export class FlowBasedWorkflowExecutor {
             let result: any = {};
 
             switch (nodeType) {
-                case TaskType.IG_USER_COMMENT:
+                case TaskType.IG_COMMENT_RECEIVED:
                     result = await this.executeCommentTrigger(node, context);
                     break;
 

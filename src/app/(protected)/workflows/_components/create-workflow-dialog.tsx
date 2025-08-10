@@ -34,7 +34,7 @@ import {
 import { toast } from "sonner";
 import { WorkflowTriggerType } from "@prisma/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { safeWorkflowExample } from "@/types/workflow-definition.type";
+import { autoResponseDMTemplate, basicAutoReplyTemplate, communityWelcomeTemplate, scratchCommentDefinition, scratchDMDefinition, smartSalesFunnelTemplate, supportBotDMTemplate, type WorkflowDefinition } from "@/types/workflow-definition.type";
 
 interface Props {
     open: boolean;
@@ -50,8 +50,8 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [integrationId, setIntegrationId] = useState("");
-    const [triggerType, setTriggerType] = useState<WorkflowTriggerType>("COMMENT_RECEIVED");
-    const [useTemplate, setUseTemplate] = useState(true);
+    const [triggerType, setTriggerType] = useState<WorkflowTriggerType>("IG_COMMENT_RECEIVED");
+    const [useTemplate, setUseTemplate] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState("basic-reply");
     const [activateNow, setActivateNow] = useState(false);
 
@@ -68,9 +68,10 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
             onOpenChange(false);
 
             // Redirect to workflow editor
-            router.push(`/workflows/${workflow.id}/edit`);
+            router.push(`/workflow/editor/${workflow.id}`);
         },
         onError: (error) => {
+            console.log(error.message)
             toast.error(error.message || "Failed to create workflow");
         },
     });
@@ -81,9 +82,7 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
             return;
         }
 
-        // Get template definition based on selection
-        const definition = getTemplateDefinition(selectedTemplate, triggerType);
-
+        const definition = getTemplateDefinition(useTemplate, selectedTemplate, triggerType);
         const workflow = {
             name: name.trim(),
             description: description.trim() || undefined,
@@ -112,9 +111,9 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
         setName("");
         setDescription("");
         setIntegrationId("");
-        setTriggerType("COMMENT_RECEIVED");
-        setUseTemplate(true);
-        setSelectedTemplate("basic-reply");
+        setTriggerType("IG_COMMENT_RECEIVED");
+        setUseTemplate(false);
+        setSelectedTemplate("");
         setActivateNow(false);
     };
 
@@ -259,13 +258,13 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
                                         onValueChange={(v) => setTriggerType(v as WorkflowTriggerType)}
                                         className="mt-3 space-y-3"
                                     >
-                                        <Card className={`p-4 cursor-pointer transition-all ${triggerType === "COMMENT_RECEIVED"
+                                        <Card className={`p-4 cursor-pointer transition-all ${triggerType === "IG_COMMENT_RECEIVED"
                                             ? 'border-purple-500 bg-purple-50/50'
                                             : 'hover:border-purple-300'
                                             }`}
-                                            onClick={() => setTriggerType("COMMENT_RECEIVED")}>
+                                            onClick={() => setTriggerType("IG_COMMENT_RECEIVED")}>
                                             <label className="flex items-start gap-3 cursor-pointer">
-                                                <RadioGroupItem value="COMMENT_RECEIVED" className="mt-0.5" />
+                                                <RadioGroupItem value="IG_COMMENT_RECEIVED" className="mt-0.5" />
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <MessageCircle className="h-4 w-4 text-purple-600" />
@@ -278,13 +277,13 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
                                             </label>
                                         </Card>
 
-                                        <Card className={`p-4 cursor-pointer transition-all ${triggerType === "DM_RECEIVED"
+                                        <Card className={`p-4 cursor-pointer transition-all ${triggerType === "IG_DM_RECEIVED"
                                             ? 'border-purple-500 bg-purple-50/50'
                                             : 'hover:border-purple-300'
                                             }`}
-                                            onClick={() => setTriggerType("DM_RECEIVED")}>
+                                            onClick={() => setTriggerType("IG_DM_RECEIVED")}>
                                             <label className="flex items-start gap-3 cursor-pointer">
-                                                <RadioGroupItem value="DM_RECEIVED" className="mt-0.5" />
+                                                <RadioGroupItem value="IG_DM_RECEIVED" className="mt-0.5" />
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <Instagram className="h-4 w-4 text-purple-600" />
@@ -375,7 +374,7 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
                                     </div>
                                 )}
 
-                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                {/* <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                                     <div className="flex items-center gap-3">
                                         <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
                                         <div>
@@ -389,7 +388,7 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
                                         checked={activateNow}
                                         onCheckedChange={setActivateNow}
                                     />
-                                </div>
+                                </div> */}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -451,81 +450,81 @@ export default function CreateWorkflowDialog({ open, onOpenChange }: Props) {
 // Helper functions
 const getTemplatesForTrigger = (triggerType: WorkflowTriggerType) => {
     const templates = {
-        COMMENT_RECEIVED: [
+        IG_COMMENT_RECEIVED: [
             {
                 id: "basic-reply",
                 name: "Basic Auto Reply",
                 description: "Reply to comments and send a follow-up DM",
                 isPro: false,
             },
-            {
-                id: "sales-funnel",
-                name: "Smart Sales Funnel",
-                description: "Identify interested customers and send personalized offers",
-                isPro: true,
-            },
-            {
-                id: "community-welcome",
-                name: "Community Welcome",
-                description: "Welcome new commenters and invite them to your community",
-                isPro: false,
-            },
+            // {
+            //     id: "sales-funnel",
+            //     name: "Smart Sales Funnel",
+            //     description: "Identify interested customers and send personalized offers",
+            //     isPro: true,
+            // },
+            // {
+            //     id: "community-welcome",
+            //     name: "Community Welcome",
+            //     description: "Welcome new commenters and invite them to your community",
+            //     isPro: false,
+            // },
         ],
-        DM_RECEIVED: [
-            {
-                id: "auto-response",
-                name: "Auto Response",
-                description: "Send automated replies to common questions",
-                isPro: false,
-            },
-            {
-                id: "support-bot",
-                name: "Support Bot",
-                description: "AI-powered customer support assistant",
-                isPro: true,
-            },
+        IG_DM_RECEIVED: [
+            // {
+            //     id: "auto-response",
+            //     name: "Auto Response",
+            //     description: "Send automated replies to common questions",
+            //     isPro: false,
+            // },
+            // {
+            //     id: "support-bot",
+            //     name: "Support Bot",
+            //     description: "AI-powered customer support assistant",
+            //     isPro: true,
+            // },
         ],
     };
 
     return templates[triggerType] || [];
 };
 
-const getTemplateDefinition = (templateId: string, triggerType: WorkflowTriggerType) => {
+export const getTemplateDefinition = (
+    useTemplate: boolean,
+    templateId: string,
+    triggerType: WorkflowTriggerType
+): WorkflowDefinition | null => {
+    if (triggerType === "IG_COMMENT_RECEIVED") {
+        if (useTemplate) {
+            switch (templateId) {
+                case "basic-reply":
+                    return basicAutoReplyTemplate;
+                case "sales-funnel":
+                    return smartSalesFunnelTemplate;
+                case "community-welcome":
+                    return communityWelcomeTemplate;
+                default:
+                    return scratchCommentDefinition;
+            }
+        } else {
+            return scratchCommentDefinition;
+        }
+    } else if (triggerType === "IG_DM_RECEIVED") {
+        if (useTemplate) {
+            switch (templateId) {
+                case "auto-response":
+                    return autoResponseDMTemplate;
+                case "support-bot":
+                    return supportBotDMTemplate;
+                default:
+                    return scratchDMDefinition;
+            }
+        } else {
+            return scratchDMDefinition;
+        }
+    } else {
+        return null;
+    }
 
-    const basicDefinition = {
-        nodes: [
-            {
-                id: "trigger-node",
-                type: "FlowScrapeNode",
-                data: {
-                    type: triggerType === "COMMENT_RECEIVED" ? "IG_USER_COMMENT" : "IG_DM_RECEIVED",
-                    inputs: {},
-                },
-                position: { x: 100, y: 100 },
-            },
-            {
-                id: "action-node",
-                type: "FlowScrapeNode",
-                data: {
-                    type: "IG_SEND_MSG",
-                    inputs: {},
-                    igReplyData: {
-                        publicReplies: ["Thank you for your interest!"],
-                        dmMessage: "Hi! Thanks for reaching out. How can I help you?",
-                    },
-                },
-                position: { x: 400, y: 100 },
-            },
-        ],
-        edges: [
-            {
-                source: "trigger-node",
-                target: "action-node",
-                animated: true,
-            },
-        ],
-        viewport: { x: 0, y: 0, zoom: 1 },
-    };
-
-    return safeWorkflowExample;
 };
+

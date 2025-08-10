@@ -14,10 +14,9 @@ type Registry = {
 // todo 
 export const TaskRegistry: Registry = {
     IG_TRIGGER: IGTrigger,
-    IG_USER_COMMENT: IGUserComment,
+    IG_COMMENT_RECEIVED: IGUserComment,
     IG_USER_DM: IGUserDM,
     IG_SEND_MSG: IGSendMessage,
     IG_SEND_WITH_AI: IGSendWithAI,
     IG_SEND_MSG_FROM_DM: IGSendMessageFromDM,
-    IG_SAFETY_CONFIG: IGSafetyConfigTask,
 };

@@ -10,7 +10,7 @@ export type WorkflowTask = {
   type: TaskType;
   isEntryPoint?: boolean;
   inputs: TaskParam[];
-  outputs: TaskParam[];
+  outputs?: TaskParam[];
   credits: number;
   dropdownComponent?: React.FC<any>;
   sidebarComponent?: React.FC<any>;

@@ -1,4 +1,3 @@
-// app/workflows/page.tsx
 'use client'
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -281,8 +280,8 @@ export default function WorkflowsPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="ALL">All Triggers</SelectItem>
-                                        <SelectItem value="COMMENT_RECEIVED">Comments</SelectItem>
-                                        <SelectItem value="DM_RECEIVED">Direct Messages</SelectItem>
+                                        <SelectItem value="IG_COMMENT_RECEIVED">Comments</SelectItem>
+                                        <SelectItem value="IG_DM_RECEIVED">Direct Messages</SelectItem>
                                     </SelectContent>
                                 </Select>
 
@@ -351,29 +350,6 @@ export default function WorkflowsPage() {
     );
 }
 
-// Components
-const StatsCard = ({ icon, label, value, color }: any) => {
-    const colorClasses: Record<string, string> = {
-        blue: 'from-blue-500 to-blue-600 bg-blue-50 text-blue-600',
-        green: 'from-green-500 to-green-600 bg-green-50 text-green-600',
-        purple: 'from-purple-500 to-purple-600 bg-purple-50 text-purple-600',
-        orange: 'from-orange-500 to-orange-600 bg-orange-50 text-orange-600',
-    };
-
-    return (
-        <Card className="p-4 border-0 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${colorClasses[color]?.split(' ').slice(2).join(' ') || ''}`}>
-                    {React.cloneElement(icon, { className: 'h-5 w-5' })}
-                </div>
-                <div>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-2xl font-bold">{value}</p>
-                </div>
-            </div>
-        </Card>
-    );
-};
 
 // Helper function to get safety info from workflow
 const getWorkflowSafetyInfo = (workflow: any) => {
@@ -436,7 +412,7 @@ const WorkflowCard = ({ workflow, onDelete, onDuplicate, onToggleActive }: {
 
     const getTriggerIcon = (type: WorkflowTriggerType) => {
         switch (type) {
-            case WorkflowTriggerType.COMMENT_RECEIVED:
+            case WorkflowTriggerType.IG_COMMENT_RECEIVED:
                 return <MessageCircle className="h-3 w-3" />;
             default:
                 return <Zap className="h-3 w-3" />;
@@ -445,7 +421,7 @@ const WorkflowCard = ({ workflow, onDelete, onDuplicate, onToggleActive }: {
 
     const getTriggerLabel = (type: WorkflowTriggerType) => {
         switch (type) {
-            case WorkflowTriggerType.COMMENT_RECEIVED:
+            case WorkflowTriggerType.IG_COMMENT_RECEIVED:
                 return 'Comment';
             default:
                 return type;
@@ -587,19 +563,5 @@ const WorkflowCard = ({ workflow, onDelete, onDuplicate, onToggleActive }: {
     );
 };
 
-// const WorkflowEmptyState = () => {
-//     return (
-//         <div className="text-center py-12">
-//             <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-//                 <Zap className="h-8 w-8 text-gray-400" />
-//             </div>
-//             <h3 className="text-lg font-semibold text-gray-900 mb-2">No workflows found</h3>
-//             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-//                 Create your first workflow to start automating your Instagram engagement
-//             </p>
-//             <CreateWorkflowDialog triggerText="Create your first workflow" />
-//         </div>
-//     );
-// };
 
 

@@ -29,7 +29,7 @@ CREATE TYPE "zosmed"."DeliveryStatus" AS ENUM ('SENT', 'DELIVERED', 'READ', 'FAI
 CREATE TYPE "zosmed"."ReplyStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'SKIPPED');
 
 -- CreateEnum
-CREATE TYPE "zosmed"."WorkflowTriggerType" AS ENUM ('COMMENT_RECEIVED', 'DM_RECEIVED');
+CREATE TYPE "zosmed"."WorkflowTriggerType" AS ENUM ('IG_COMMENT_RECEIVED', 'IG_DM_RECEIVED');
 
 -- CreateEnum
 CREATE TYPE "zosmed"."WorkflowStatus" AS ENUM ('DRAFT', 'ACTIVE', 'PAUSED', 'ERROR');

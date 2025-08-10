@@ -81,7 +81,7 @@ export class MessageProcessor {
                 where: {
                     integrationId: integration.id,
                     isActive: true,
-                    triggerType: WorkflowTriggerType.DM_RECEIVED
+                    triggerType: WorkflowTriggerType.IG_DM_RECEIVED
                 }
             });
 

@@ -7,7 +7,7 @@ import { TaskMenuBtn } from "@/app/(protected)/workflow/editor/[workflowId]/_com
 import FormUserCommentIG from "@/app/(protected)/workflow/editor/[workflowId]/_components/content/form-user-comment-ig";
 
 export const IGUserComment = {
-    type: TaskType.IG_USER_COMMENT,
+    type: TaskType.IG_COMMENT_RECEIVED,
     label: "User comment in my post",
     icon: (props: LucideProps) => (
         <Zap className="stroke-orange-400" {...props} />
@@ -19,7 +19,7 @@ export const IGUserComment = {
     ] as const,
     outputs: [
         {
-            name: "Action",
+            name: "TRIGGER",
             type: TaskParamType.TRIGGER,
             required: true,
         }
@@ -29,22 +29,13 @@ export const IGUserComment = {
             <TaskMenuBtn
                 taskType={TaskType.IG_SEND_MSG}
                 sourceNodeId={sourceNodeId}
-                sourceHandle="Action"
                 onCreateAndConnect={onCreateAndConnect}
             />
             <TaskMenuBtn
                 taskType={TaskType.IG_SEND_WITH_AI}
                 sourceNodeId={sourceNodeId}
-                sourceHandle="Action"
                 onCreateAndConnect={onCreateAndConnect}
                 isDisable
-            />
-            <TaskMenuBtn
-                taskType={TaskType.IG_SAFETY_CONFIG}
-                sourceNodeId={sourceNodeId}
-                sourceHandle="Action"
-                onCreateAndConnect={onCreateAndConnect}
-
             />
         </div>
     ),

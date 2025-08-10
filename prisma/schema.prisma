@@ -379,8 +379,8 @@ model Workflow {
 }
 
 enum WorkflowTriggerType {
-  COMMENT_RECEIVED
-  DM_RECEIVED
+  IG_COMMENT_RECEIVED
+  IG_DM_RECEIVED
 
   @@schema("zosmed")
 }

@@ -55,7 +55,7 @@ export class CommentProcessor {
                 where: {
                     integrationId: integration.id,
                     isActive: true,
-                    triggerType: WorkflowTriggerType.COMMENT_RECEIVED
+                    triggerType: WorkflowTriggerType.IG_COMMENT_RECEIVED
                 }
             });
 
@@ -164,7 +164,7 @@ export class CommentProcessor {
                         workflowId: workflow.id,
                         userId: workflow.userId,
                         trigger: JSON.stringify({
-                            type: 'IG_USER_COMMENT',
+                            type: 'IG_COMMENT_RECEIVED',
                             commentId: comment.id,
                             postId: comment.postId
                         }),

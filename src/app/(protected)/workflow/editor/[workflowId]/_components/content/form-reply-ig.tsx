@@ -1,4 +1,3 @@
-// src/app/(protected)/workflow/editor/[workflowId]/_components/content/form-reply-ig.tsx
 'use client'
 
 import { Button } from "@/components/ui/button";
@@ -109,6 +108,7 @@ const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
     // Helper functions
     const addReply = () => {
         if (!newReply.trim()) return;
+        if (replies.length >= 5) return; // Maksimal 5 reply
         setReplies((prev) => [...prev, newReply.trim()]);
         setNewReply("");
     };
@@ -257,17 +257,24 @@ const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
                                             </Button>
                                         </div>
                                     ))}
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Add reply template..."
-                                            value={newReply}
-                                            onChange={(e) => setNewReply(e.target.value)}
-                                            onKeyPress={(e) => e.key === 'Enter' && addReply()}
-                                        />
-                                        <Button onClick={addReply}>
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    {replies.length >= 5 ? (
+                                        <div className="text-xs text-muted-foreground">
+                                            Maksimal 5 template reply sudah tercapai.
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Add reply template..."
+                                                value={newReply}
+                                                maxLength={150}
+                                                onChange={(e) => setNewReply(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && addReply()}
+                                            />
+                                            <Button onClick={addReply}>
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    )}
                                 </CardContent>
                             )}
                         </Card>
@@ -700,7 +707,7 @@ const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
                         </Card>
 
                         {/* Testing & Debug Tools */}
-                        <Card>
+                        {/* <Card>
                             <CardHeader>
                                 <CardTitle className="text-base">Testing Tools</CardTitle>
                                 <CardDescription className="text-xs">
@@ -747,7 +754,7 @@ const FormReplyIG = ({ nodeId, initialData }: FormReplyIGProps) => {
                                     </Button>
                                 </div>
                             </CardContent>
-                        </Card>
+                        </Card> */}
 
                         {/* Action Summary */}
                         <Card className="bg-gray-50">

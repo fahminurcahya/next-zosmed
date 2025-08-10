@@ -136,49 +136,58 @@ export const workflowRouter = createTRPCRouter({
     create: protectedProcedure
         .input(createWorkflowSchema)
         .mutation(async ({ ctx, input }) => {
-            // Verify integration ownership
-            const integration = await ctx.db.integration.findFirst({
-                where: {
-                    id: input.integrationId,
-                    userId: ctx.session.user.id,
-                },
-            });
+            try {
+                // Verify integration ownership
+                const integration = await ctx.db.integration.findFirst({
+                    where: {
+                        id: input.integrationId,
+                        userId: ctx.session.user.id,
+                    },
+                });
 
-            if (!integration) {
+                if (!integration) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Integration not found',
+                    });
+                }
+
+                // Check for duplicate name
+                const existing = await ctx.db.workflow.findFirst({
+                    where: {
+                        name: input.name,
+                        userId: ctx.session.user.id,
+                    },
+                });
+
+                if (existing) {
+                    throw new TRPCError({
+                        code: 'CONFLICT',
+                        message: 'A workflow with this name already exists',
+                    });
+                }
+
+                console.log(input)
+
+                const workflow = await ctx.db.workflow.create({
+                    data: {
+                        userId: ctx.session.user.id,
+                        integrationId: input.integrationId,
+                        name: input.name,
+                        description: input.description,
+                        definition: JSON.stringify(input.definition),
+                        triggerType: input.triggerType,
+                        isActive: input.isActive,
+                    },
+                });
+
+                return workflow;
+            } catch (error) {
                 throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Integration not found',
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Opss, Internal Server Error',
                 });
             }
-
-            // Check for duplicate name
-            const existing = await ctx.db.workflow.findFirst({
-                where: {
-                    name: input.name,
-                    userId: ctx.session.user.id,
-                },
-            });
-
-            if (existing) {
-                throw new TRPCError({
-                    code: 'CONFLICT',
-                    message: 'A workflow with this name already exists',
-                });
-            }
-
-            const workflow = await ctx.db.workflow.create({
-                data: {
-                    userId: ctx.session.user.id,
-                    integrationId: input.integrationId,
-                    name: input.name,
-                    description: input.description,
-                    definition: JSON.stringify(input.definition),
-                    triggerType: input.triggerType,
-                    isActive: input.isActive,
-                },
-            });
-
-            return workflow;
         }),
 
     // Update workflow
